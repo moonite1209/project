@@ -57,8 +57,8 @@ class Camera(nn.Module):
         self.camera_center = self.world_view_transform.inverse()[3, :3]
     def get_language_feature(self, language_feature_dir, feature_level):
         language_feature_name = os.path.join(language_feature_dir, self.image_name)
-        seg_map = torch.from_numpy(np.load(language_feature_name + '_s.npy'))
-        feature_map = torch.from_numpy(np.load(language_feature_name + '_f.npy'))
+        seg_map = torch.from_numpy(np.load(language_feature_name + '_s.npy')) # (4种scale, W, H)
+        feature_map = torch.from_numpy(np.load(language_feature_name + '_f.npy')) # (n个分割区域, 512)
         
         # elif str(language_feature_name).split('.')[-1] == 'pkl':
         #     with open(language_feature_name, 'rb') as f:

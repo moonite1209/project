@@ -116,8 +116,8 @@ def create(image_list, data_list, save_folder):
     seg_maps = []
     total_lengths = []
     timer = 0
-    img_embeds = torch.zeros((len(image_list), 300, embed_size))
-    seg_maps = torch.zeros((len(image_list), 4, *image_list[0].shape[1:])) 
+    img_embeds = torch.zeros((len(image_list), 300, embed_size)) #TODO 300
+    seg_maps = torch.zeros((len(image_list), 4, *image_list[0].shape[1:])) #TODO 4
     mask_generator.predictor.model.to('cuda')
 
     for i, img in tqdm(enumerate(image_list), desc="Embedding images", leave=False):
@@ -175,24 +175,24 @@ def sava_numpy(save_path, data):
 
 def _embed_clip_sam_tiles(image, sam_encoder):
     aug_imgs = torch.cat([image])
-    seg_images, seg_map = sam_encoder(aug_imgs)
+    seg_images, seg_map = sam_encoder(aug_imgs) #
 
-    clip_embeds = {}
+    clip_embeds = {} #4种scale，(n个区域，512维feat)
     for mode in ['default', 's', 'm', 'l']:
-        tiles = seg_images[mode]
+        tiles = seg_images[mode] # n个分割区域，（n，3，224，224）
         tiles = tiles.to("cuda")
         with torch.no_grad():
             clip_embed = model.encode_image(tiles)
-        clip_embed /= clip_embed.norm(dim=-1, keepdim=True)
+        clip_embed /= clip_embed.norm(dim=-1, keepdim=True) #(n,512)
         clip_embeds[mode] = clip_embed.detach().cpu().half()
     
-    return clip_embeds, seg_map
+    return clip_embeds, seg_map #像素点对应的分割区域编号，无对应的编号-1
 
 def get_seg_img(mask, image):
     image = image.copy()
-    image[mask['segmentation']==0] = np.array([0, 0,  0], dtype=np.uint8)
+    image[mask['segmentation']==0] = np.array([0, 0,  0], dtype=np.uint8) #分割区域外为白色
     x,y,w,h = np.int32(mask['bbox'])
-    seg_img = image[y:y+h, x:x+w, ...]
+    seg_img = image[y:y+h, x:x+w, ...] #将img按分割区域bbox裁剪
     return seg_img
 
 def pad_img(img):
@@ -296,6 +296,14 @@ def masks_update(*args, **kwargs):
 def sam_encoder(image):
     image = cv2.cvtColor(image[0].permute(1,2,0).numpy().astype(np.uint8), cv2.COLOR_BGR2RGB)
     # pre-compute masks
+    # for each mask:
+    # segmentation : the mask, H x W bool
+    # area : the area of the mask in pixels, 面积
+    # bbox : the boundary box of the mask in XYWH format
+    # predicted_iou : the model's own prediction for the quality of the mask
+    # point_coords : the sampled input point that generated this mask
+    # stability_score : an additional measure of mask quality
+    # crop_box : the crop of the image used to generate this mask in XYWH format
     masks_default, masks_s, masks_m, masks_l = mask_generator.generate(image)
     # pre-compute postprocess
     masks_default, masks_s, masks_m, masks_l = \
@@ -306,11 +314,11 @@ def sam_encoder(image):
         seg_map = -np.ones(image.shape[:2], dtype=np.int32)
         for i in range(len(masks)):
             mask = masks[i]
-            seg_img = get_seg_img(mask, image)
-            pad_seg_img = cv2.resize(pad_img(seg_img), (224,224))
+            seg_img = get_seg_img(mask, image) #按bbox裁剪，背景为白色
+            pad_seg_img = cv2.resize(pad_img(seg_img), (224,224)) #填充（白色）img为正方形，主体居中
             seg_img_list.append(pad_seg_img)
 
-            seg_map[masks[i]['segmentation']] = i
+            seg_map[masks[i]['segmentation']] = i #每个像素对应哪一个mask即分割区域
         seg_imgs = np.stack(seg_img_list, axis=0) # b,H,W,3
         seg_imgs = (torch.from_numpy(seg_imgs.astype("float32")).permute(0,3,1,2) / 255.0).to('cuda')
 
