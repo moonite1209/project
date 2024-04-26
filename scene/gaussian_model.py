@@ -182,7 +182,7 @@ class GaussianModel:
         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
         rots[:, 0] = 1
 
-        opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
+        opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda")) #α初值为0.1
         # language_feature = torch.zeros((fused_point_cloud.shape[0], 512), device="cuda")
         
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))

@@ -91,10 +91,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             pipe.debug = True
         render_pkg = render(viewpoint_cam, gaussians, pipe, background, opt) #TODO 渲染
         image, language_feature, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["language_feature_image"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
-        
+        #(3,H,W), (3,H,W), 
         # Loss
         if opt.include_feature:
-            # (n个分割区域, 512)    (4种scale, W, H)
+            # (3, H, W)    (1, W, H)
             gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
             Ll1 = l1_loss(language_feature*language_feature_mask, gt_language_feature*language_feature_mask)            
             loss = Ll1
