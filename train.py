@@ -43,6 +43,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             raise ValueError("checkpoint missing!!!!!")
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
+        print(f'loaded {model_params[1].shape[0]} points')
         if len(model_params) == 12 and opt.include_feature:
             first_iter = 0
         gaussians.restore(model_params, opt)
@@ -91,6 +92,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             pipe.debug = True
         render_pkg = render(viewpoint_cam, gaussians, pipe, background, opt) #TODO 渲染
         image, language_feature, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["language_feature_image"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
+        max_weight=render_pkg["max_weight"][0]
+        max_contributer = render_pkg["max_weight"][1]
         #(3,H,W), (3,H,W), 
         # Loss
         if opt.include_feature:
