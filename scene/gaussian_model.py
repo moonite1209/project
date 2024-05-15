@@ -51,6 +51,7 @@ class GaussianModel:
         self._rotation = torch.empty(0)
         self._opacity = torch.empty(0)
         self._language_feature = None
+        self._language_feature_3d = None
         
         self.max_radii2D = torch.empty(0)
         self.xyz_gradient_accum = torch.empty(0)
@@ -104,6 +105,7 @@ class GaussianModel:
             self._rotation, 
             self._opacity,
             self._language_feature,
+            self._language_feature_3d,
             self.max_radii2D, 
             xyz_gradient_accum, 
             denom,
@@ -160,6 +162,13 @@ class GaussianModel:
         else:
             raise ValueError('没有设置language feature')
     
+    @property
+    def get_language_feature_3d(self):
+        if self._language_feature_3d is not None:
+            return self._language_feature_3d
+        else:
+            raise ValueError('没有设置language feature 3d')
+        
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
 
@@ -200,15 +209,26 @@ class GaussianModel:
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         
-        if training_args.include_feature:
-            if self._language_feature is None or self._language_feature.shape[0] != self._xyz.shape[0]:
-                # 开始feature训练的时候，往模型中加入language feature参数
-                language_feature = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
-                self._language_feature = nn.Parameter(language_feature.requires_grad_(True))
-                
-            l = [
-                {'params': [self._language_feature], 'lr': training_args.language_feature_lr, "name": "language_feature"}, # TODO: training_args.language_feature_lr
-            ]
+        if training_args.include_feature or training_args.include_feature_3d:
+            l=[]
+            if training_args.include_feature:
+                if self._language_feature is None or self._language_feature.shape[0] != self._xyz.shape[0]:
+                    # 开始feature训练的时候，往模型中加入language feature参数
+                    language_feature = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
+                    self._language_feature = nn.Parameter(language_feature.requires_grad_(True))
+                    
+                l.append(
+                    {'params': [self._language_feature], 'lr': training_args.language_feature_lr, "name": "language_feature"}, # TODO: training_args.language_feature_lr
+                )
+            if training_args.include_feature_3d:
+                if self._language_feature_3d is None or self._language_feature_3d.shape[0] != self._xyz.shape[0]:
+                    # 开始feature训练的时候，往模型中加入language feature参数
+                    language_feature_3d = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
+                    self._language_feature_3d = nn.Parameter(language_feature_3d.requires_grad_(True))
+                    
+                l.append(
+                    {'params': [self._language_feature_3d], 'lr': training_args.language_feature_3d_lr, "name": "language_feature_3d"}, # TODO: training_args.language_feature_3d_lr
+                )
             self._xyz.requires_grad_(False)
             self._features_dc.requires_grad_(False)
             self._features_rest.requires_grad_(False)

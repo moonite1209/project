@@ -90,15 +90,22 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     else:
         language_feature_precomp = torch.zeros((1,), dtype=opacity.dtype, device=opacity.device)
         
+    if opt.include_feature_3d:
+        language_feature_3d_precomp = pc.get_language_feature_3d
+        language_feature_3d_precomp = language_feature_3d_precomp/ (language_feature_3d_precomp.norm(dim=-1, keepdim=True) + 1e-9)
+        # language_feature_precomp = torch.sigmoid(language_feature_precomp)
+    else:
+        language_feature_3d_precomp = torch.zeros((1,), dtype=opacity.dtype, device=opacity.device)
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     # start_time = time.time()
 
-    rendered_image, language_feature_image, max_weight, radii = rasterizer(
+    rendered_image, language_feature_image, language_feature_3d, radii = rasterizer(
         means3D = means3D,
         means2D = means2D,
         shs = shs,
         colors_precomp = colors_precomp,
         language_feature_precomp = language_feature_precomp,
+        language_feature_3d_precomp = language_feature_3d_precomp,
         opacities = opacity,
         scales = scales,
         rotations = rotations,
@@ -110,7 +117,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     
     return {"render": rendered_image,
             "language_feature_image": language_feature_image,
-            "max_weight": max_weight,
+            "language_feature_3d": language_feature_3d,
             "viewspace_points": screenspace_points,
             "visibility_filter" : radii > 0,
             "radii": radii}
