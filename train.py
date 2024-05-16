@@ -44,7 +44,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         print(f'loaded {model_params[1].shape[0]} points')
-        if len(model_params) == 12 and opt.include_feature:
+        if len(model_params) == 12 and (opt.include_feature or opt.include_feature_3d):
             first_iter = 0
         gaussians.restore(model_params, opt)
         
