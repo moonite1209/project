@@ -95,18 +95,21 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         max_weight=render_pkg["max_weight"][0]
         max_contributer = render_pkg["max_weight"][1]
         max_contributer = max_contributer.type(torch.long)
+        language_feature = gaussians.get_language_feature[max_contributer].permute(2,0,1)
         #(3,H,W), (3,H,W), 
         # Loss
         if opt.include_feature:
             # (3, H, W)    (1, W, H)
             gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
-            Ll1 = l1_loss(language_feature*language_feature_mask, gt_language_feature*language_feature_mask)            
-            loss = Ll1
+            language_feature[:,:,:] = gt_language_feature * language_feature_mask #(3,H,W)
+
+            # Ll1 = l1_loss(language_feature*language_feature_mask, gt_language_feature*language_feature_mask)            
+            # loss = Ll1
         else:
             gt_image = viewpoint_cam.original_image.cuda()
             Ll1 = l1_loss(image, gt_image)
             loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
-        loss.backward()
+        # loss.backward()
         iter_end.record()
         with torch.no_grad():
             # Progress bar
@@ -138,9 +141,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                         gaussians.reset_opacity()
 
             # Optimizer step
-            if iteration < opt.iterations:
-                gaussians.optimizer.step()
-                gaussians.optimizer.zero_grad(set_to_none = True)
+            # if iteration < opt.iterations:
+            #     gaussians.optimizer.step()
+            #     gaussians.optimizer.zero_grad(set_to_none = True)
 
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
