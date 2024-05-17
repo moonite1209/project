@@ -37,8 +37,10 @@ def render_set(model_path, source_path, name, iteration, views, gaussians, pipel
 
         if not (args.include_feature or args.include_feature_3d):
             rendering = output["render"]
-        else:
+        elif args.include_feature:
             rendering = output["language_feature_image"]
+        elif args.include_feature_3d:
+            rendering = output["language_feature_3d"]
             
         if not (args.include_feature or args.include_feature_3d):
             gt = view.original_image[0:3, :, :]
@@ -47,15 +49,15 @@ def render_set(model_path, source_path, name, iteration, views, gaussians, pipel
             gt, mask = view.get_language_feature(os.path.join(source_path, args.language_features_name), feature_level=args.feature_level)
 
         np.save(os.path.join(render_npy_path, '{0:05d}'.format(idx) + ".npy"),rendering.permute(1,2,0).cpu().numpy())
-        np.save(os.path.join(gts_npy_path, '{0:05d}'.format(idx) + ".npy"),gt.permute(1,2,0).cpu().numpy())
+        np.save(os.path.join(gts_npy_path, '{0:05d}'.format(idx) + ".npy"),(gt*mask).permute(1,2,0).cpu().numpy())
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
-        torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+        torchvision.utils.save_image(gt*mask, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
                
 def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, args):
     with torch.no_grad():
         gaussians = GaussianModel(dataset.sh_degree)
         scene = Scene(dataset, gaussians, shuffle=False)
-        checkpoint = os.path.join(args.model_path, 'chkpnt30000.pth')
+        checkpoint = os.path.join(args.model_path, 'chkpnt7000.pth')
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, args, mode='test')
         

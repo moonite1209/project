@@ -114,20 +114,34 @@ class GaussianModel:
     
     def restore(self, model_args, training_args, mode='train'):
         if len(model_args) == 13: # 这是一个feature训练时保存的ckpt
-            (self.active_sh_degree, 
-            self._xyz, 
-            self._features_dc, 
-            self._features_rest,
-            self._scaling, 
-            self._rotation, 
-            self._opacity,
-            self._language_feature,
-            self._language_feature_3d,
-            self.max_radii2D, 
-            xyz_gradient_accum, 
-            denom,
-            opt_dict, 
-            self.spatial_lr_scale) = model_args
+            if training_args.include_feature:
+                (self.active_sh_degree, 
+                self._xyz, 
+                self._features_dc, 
+                self._features_rest,
+                self._scaling, 
+                self._rotation, 
+                self._opacity,
+                self._language_feature,
+                self.max_radii2D, 
+                xyz_gradient_accum, 
+                denom,
+                opt_dict, 
+                self.spatial_lr_scale) = model_args
+            elif training_args.include_feature_3d:
+                (self.active_sh_degree, 
+                self._xyz, 
+                self._features_dc, 
+                self._features_rest,
+                self._scaling, 
+                self._rotation, 
+                self._opacity,
+                self._language_feature_3d,
+                self.max_radii2D, 
+                xyz_gradient_accum, 
+                denom,
+                opt_dict, 
+                self.spatial_lr_scale) = model_args
         elif len(model_args) == 12: # 这是一个不训练feature保存的ckpt
             (self.active_sh_degree, 
             self._xyz, 
