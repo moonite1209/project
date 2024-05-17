@@ -38,7 +38,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
 
-    if opt.include_feature:
+    if opt.include_feature or opt.include_feature_3d:
         if not checkpoint:
             raise ValueError("checkpoint missing!!!!!")
     if checkpoint:
@@ -126,7 +126,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 scene.save(iteration)
 
             # Densification
-            if not opt.include_feature:
+            if not (opt.include_feature or opt.include_feature_3d):
                 if iteration < opt.densify_until_iter:
                     # Keep track of max radii in image-space for pruning
                     gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
@@ -146,7 +146,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
-                torch.save((gaussians.capture(opt.include_feature), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+                torch.save((gaussians.capture(opt.include_feature, opt.include_feature_3d), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
             
 def prepare_output_and_logger(args):    
     if not args.model_path:

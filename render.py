@@ -35,12 +35,12 @@ def render_set(model_path, source_path, name, iteration, views, gaussians, pipel
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         output = render(view, gaussians, pipeline, background, args)
 
-        if not args.include_feature:
+        if not (args.include_feature or args.include_feature_3d):
             rendering = output["render"]
         else:
             rendering = output["language_feature_image"]
             
-        if not args.include_feature:
+        if not (args.include_feature or args.include_feature_3d):
             gt = view.original_image[0:3, :, :]
             
         else:
@@ -79,6 +79,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip_test", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--include_feature", action="store_true")
+    parser.add_argument("--include_feature_3d", action="store_true")
 
     args = get_combined_args(parser)
     print("Rendering " + args.model_path)
