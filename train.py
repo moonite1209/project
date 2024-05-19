@@ -103,7 +103,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         elif opt.include_feature_3d:
             gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
             Ll1 = l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)            
-            loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
+            loss = Ll1 #(1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
         else:
             gt_image = viewpoint_cam.original_image.cuda()
             Ll1 = l1_loss(image, gt_image)
@@ -226,7 +226,10 @@ if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     print(args)
-    args.model_path = args.model_path + f"_{str(args.feature_level)}"
+    # if args.include_feature:
+    #     args.model_path = args.model_path + f"_{str(args.feature_level)}"
+    # elif args.include_feature_3d:
+    #     args.model_path = args.model_path + f"_3d_{str(args.feature_level)}"
     print("Optimizing " + args.model_path)
 
     # Initialize system state (RNG)
