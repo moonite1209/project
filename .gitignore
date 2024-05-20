@@ -11,3 +11,4 @@ events.out*
 ckpts
 ckpt
 release
+eval_result
