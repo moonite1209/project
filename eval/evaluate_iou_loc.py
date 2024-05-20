@@ -229,12 +229,12 @@ def evaluate(feat_dir, output_path, ae_ckpt_path, json_folder, mask_thresh, enco
 
     gt_ann, image_shape, image_paths = eval_gt_lerfdata(Path(json_folder), Path(output_path))
     eval_index_list = [int(idx) for idx in list(gt_ann.keys())]
-    compressed_sem_feats = np.zeros((len(feat_dir), len(eval_index_list), *image_shape, 3), dtype=np.float32)
+    compressed_sem_feats = np.zeros((len(feat_dir), len(eval_index_list), *image_shape, 3), dtype=np.float32) # (3 sclcar, frames, H, W, 3 Channel)
     for i in range(len(feat_dir)):
         feat_paths_lvl = sorted(glob.glob(os.path.join(feat_dir[i], '*.npy')),
                                key=lambda file_name: int(os.path.basename(file_name).split(".npy")[0]))
         for j, idx in enumerate(eval_index_list):
-            compressed_sem_feats[i][j] = np.load(feat_paths_lvl[idx])
+            compressed_sem_feats[i][j] = np.load(feat_paths_lvl[idx]) # i尺度 j帧的语义图
 
     # instantiate autoencoder and openclip
     clip_model = OpenCLIPNetwork(device)
