@@ -67,7 +67,7 @@ def colormap_saving(image: torch.Tensor, colormap_options, save_path):
         colormaps.apply_colormap(
             image=image,
             colormap_options=colormap_options,
-        ).cpu().numpy()
+        ).cpu()
     )
     if save_path is not None:
         torchvision.utils.save_image(output_image,save_path.with_suffix(".png"),format="png")
