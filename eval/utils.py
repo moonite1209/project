@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 # import mediapy as media
 import torchvision
 import cv2
-import torchvision.image
+# import torchvision.image
 import colormaps
 from pathlib import Path
 
