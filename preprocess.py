@@ -282,9 +282,9 @@ def masks_update(*args, **kwargs):
     # remove redundant masks based on the scores and overlap rate between masks
     masks_new = ()
     for masks_lvl in (args):
-        seg_pred =  torch.from_numpy(np.stack([m['segmentation'] for m in masks_lvl], axis=0))#.cude()
-        iou_pred = torch.from_numpy(np.stack([m['predicted_iou'] for m in masks_lvl], axis=0))#.cude()
-        stability = torch.from_numpy(np.stack([m['stability_score'] for m in masks_lvl], axis=0))#.cude()
+        seg_pred =  torch.from_numpy(np.stack([m['segmentation'] for m in masks_lvl], axis=0)).cude()
+        iou_pred = torch.from_numpy(np.stack([m['predicted_iou'] for m in masks_lvl], axis=0)).cude()
+        stability = torch.from_numpy(np.stack([m['stability_score'] for m in masks_lvl], axis=0)).cude()
 
         scores = stability * iou_pred
         keep_mask_nms = mask_nms(seg_pred, scores, **kwargs)
