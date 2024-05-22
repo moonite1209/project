@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from arguments import ModelParams, OptimizationParams, PipelineParams
 from scene import Scene, GaussianModel
+from gaussian_renderer import render
 import torch
 import os
 import sys
@@ -25,5 +26,5 @@ if __name__ == '__main__':
     # scene = Scene(args, gaussians)
     params, iter = torch.load(os.path.join(args.model_path, 'chkpnt30000.pth'))
     gaussians.restore(params, args, 'eval')
-    
+    render_pkg = render(camera, gaussians, pipe, bg_color, opt)
     print(gaussians.get_xyz.shape)
