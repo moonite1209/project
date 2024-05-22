@@ -17,8 +17,8 @@ import time
 from tqdm import tqdm
 
 import sys
-sys.path.append("..")
-sys.path.append(sys.path.append(os.path.join(os.path.dirname(__file__),"..")))
+# sys.path.append("..")
+sys.path.append(os.path.join(os.path.dirname(__file__),".."))
 import colormaps
 from autoencoder.model import Autoencoder
 from openclip_encoder import OpenCLIPNetwork
