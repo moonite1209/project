@@ -52,8 +52,8 @@ def smooth(mask):
     for i in range(h):
         for j in range(w):
             square = mask[max(0, i-scale) : min(i+scale+1, h-1),
-                          max(0, j-scale) : min(j+scale+1, w-1)]
-            im_smooth[i, j] = np.argmax(np.bincount(square.reshape(-1)))
+                          max(0, j-scale) : min(j+scale+1, w-1)] #7*7
+            im_smooth[i, j] = np.argmax(np.bincount(square.reshape(-1))) # 众数滤波
     return im_smooth
 
 

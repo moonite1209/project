@@ -104,7 +104,7 @@ class OpenCLIPNetwork:
         for i in range(n_levels):
             for j in range(n_phrases):
                 probs = self.get_relevancy(clip_output[..., i, :], j)
-                pos_prob = probs[..., 0:1]
+                pos_prob = probs[..., 0:1] #i 尺度上图像与j phrases的相关性[0~1]
                 n_phrases_sims[j] = pos_prob
             n_levels_sims[i] = torch.stack(n_phrases_sims)
         

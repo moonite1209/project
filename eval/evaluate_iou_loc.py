@@ -95,7 +95,7 @@ def activate_stream(sem_map,
                     img_ann: Dict = None, 
                     thresh : float = 0.5, 
                     colormap_options = None):
-    valid_map = clip_model.get_max_across(sem_map)                 # 3xkx832x1264
+    valid_map = clip_model.get_max_across(sem_map)                 # 3xkx832x1264, (3 sclar, k phrases, H, W) 每种尺度每个短语的相关性图
     n_head, n_prompt, h, w = valid_map.shape
 
     # positive prompts
@@ -110,7 +110,7 @@ def activate_stream(sem_map,
             np_relev = valid_map[i][k].cpu().numpy()
             avg_filtered = cv2.filter2D(np_relev, -1, kernel)
             avg_filtered = torch.from_numpy(avg_filtered).to(valid_map.device)
-            valid_map[i][k] = 0.5 * (avg_filtered + valid_map[i][k])
+            valid_map[i][k] = 0.5 * (avg_filtered + valid_map[i][k]) #NOTE 均值滤波
             
             output_path_relev = image_name / 'heatmap' / f'{clip_model.positives[k]}_{i}'
             output_path_relev.parent.mkdir(exist_ok=True, parents=True)
@@ -133,7 +133,7 @@ def activate_stream(sem_map,
             output = output * (1.0 - (-1.0)) + (-1.0)
             output = torch.clip(output, 0, 1)
 
-            mask_pred = (output.cpu().numpy() > thresh).astype(np.uint8)
+            mask_pred = (output.cpu().numpy() > thresh).astype(np.uint8) # 大于阈值的激活
             mask_pred = smooth(mask_pred)
             mask_lvl[i] = mask_pred
             mask_gt = img_ann[clip_model.positives[k]]['mask'].astype(np.uint8)
@@ -148,7 +148,7 @@ def activate_stream(sem_map,
         for i in range(n_head):
             score = valid_map[i, k].max()
             score_lvl[i] = score
-        chosen_lvl = torch.argmax(score_lvl)
+        chosen_lvl = torch.argmax(score_lvl) #NOTE 选的是最大相关度最大的尺度
         
         chosen_iou_list.append(iou_lvl[chosen_lvl])
         chosen_lvl_list.append(chosen_lvl.cpu().numpy())
@@ -230,9 +230,9 @@ def evaluate(feat_dir, output_path, ae_ckpt_path, json_folder, mask_thresh, enco
 
     gt_ann, image_shape, image_paths = eval_gt_lerfdata(Path(json_folder), Path(output_path))
     eval_index_list = [int(idx) for idx in list(gt_ann.keys())]
-    compressed_sem_feats = np.zeros((len(feat_dir), len(eval_index_list), *image_shape, 3), dtype=np.float32) # (3 sclcar, frames, H, W, 3 Channel)
+    compressed_sem_feats = np.zeros((len(feat_dir), len(eval_index_list), *image_shape, 3), dtype=np.float32) # (3 sclcar, eval frames, H, W, 3 Channel)
     for i in range(len(feat_dir)):
-        feat_paths_lvl = sorted(glob.glob(os.path.join(feat_dir[i], '*.npy')),
+        feat_paths_lvl = sorted(glob.glob(os.path.join(feat_dir[i], '*.npy')), # (N,H,W,3)
                                key=lambda file_name: int(os.path.basename(file_name).split(".npy")[0]))
         for j, idx in enumerate(eval_index_list):
             compressed_sem_feats[i][j] = np.load(feat_paths_lvl[idx]) # i尺度 j帧的语义图
@@ -265,11 +265,11 @@ def evaluate(feat_dir, output_path, ae_ckpt_path, json_folder, mask_thresh, enco
         clip_model.set_positives(list(img_ann.keys()))
         
         c_iou_list, c_lvl = activate_stream(restored_feat, rgb_img, clip_model, image_name, img_ann,
-                                            thresh=mask_thresh, colormap_options=colormap_options)
+                                            thresh=mask_thresh, colormap_options=colormap_options) # iou
         chosen_iou_all.extend(c_iou_list)
         chosen_lvl_list.extend(c_lvl)
 
-        acc_num_img = lerf_localization(restored_feat, rgb_img, clip_model, image_name, img_ann)
+        acc_num_img = lerf_localization(restored_feat, rgb_img, clip_model, image_name, img_ann) #localization
         acc_num += acc_num_img
 
     # # iou
@@ -298,7 +298,8 @@ def seed_everything(seed_value):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = True
 
-
+#NOTE IoU：选择最大相关度最大的尺度的相关性图，根据阈值得到预测的mask，与gt mask计算IoU（不是使用bbox）
+#NOTE loc：选择最大相关度最大的尺度的相关性图，计算相关性最大的点是否在bbox内
 if __name__ == "__main__":
     seed_num = 42
     seed_everything(seed_num)
