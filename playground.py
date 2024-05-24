@@ -3,10 +3,13 @@ from arguments import ModelParams, OptimizationParams, PipelineParams
 from scene import Scene, GaussianModel
 from gaussian_renderer import render
 import torch
+import torchvision
 import os
 import sys
+import glob
+import numpy as np
 
-if __name__ == '__main__':
+def gaussian_test():
     parser = ArgumentParser(description="Training script parameters")
     lp = ModelParams(parser)
     op = OptimizationParams(parser)
@@ -28,3 +31,26 @@ if __name__ == '__main__':
     gaussians.restore(params, args, 'eval')
     render_pkg = render(camera, gaussians, pipe, bg_color, opt)
     print(gaussians.get_xyz.shape)
+
+def test():
+    gt_npys = glob.glob('output/lerf_ovs/**/train/ours_None/gt_npy/*.npy',recursive=True)
+    render_npys = glob.glob('output/lerf_ovs/**/train/ours_None/renders_npy/*.npy',recursive=True)
+    print(gt_npys[-1], render_npys[-1])
+    print(len(gt_npys), len(render_npys))
+    for gt_npy in gt_npys:
+        output_path=os.path.join(os.path.dirname(gt_npy),'../gt',os.path.basename(gt_npy).replace('npy','png'))
+        output_path=os.path.abspath(output_path)
+        gt_npy=torch.from_numpy(np.load(gt_npy))
+        torchvision.utils.save_image(gt_npy.permute(2,0,1)/2+0.5, output_path)
+    for render_npy in render_npys:
+        output_path=os.path.join(os.path.dirname(render_npy),'../renders',os.path.basename(render_npy).replace('npy','png'))
+        output_path=os.path.abspath(output_path)
+        render_npy=torch.from_numpy(np.load(render_npy))
+        torchvision.utils.save_image(render_npy.permute(2,0,1)/2+0.5, output_path)
+
+
+def main():
+    test()
+
+if __name__ == '__main__':
+    main()
