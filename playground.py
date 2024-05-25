@@ -40,13 +40,13 @@ def test():
     for gt_npy in gt_npys:
         output_path=os.path.join(os.path.dirname(gt_npy),'../gt',os.path.basename(gt_npy).replace('npy','png'))
         output_path=os.path.abspath(output_path)
-        gt_npy=torch.from_numpy(np.load(gt_npy))
-        torchvision.utils.save_image(gt_npy.permute(2,0,1)/2+0.5, output_path)
+        gt_npy=torch.from_numpy(np.load(gt_npy)).permute(2,0,1)
+        torchvision.utils.save_image((gt_npy-gt_npy.min())/(gt_npy.max()-gt_npy.min()), output_path)
     for render_npy in render_npys:
         output_path=os.path.join(os.path.dirname(render_npy),'../renders',os.path.basename(render_npy).replace('npy','png'))
         output_path=os.path.abspath(output_path)
-        render_npy=torch.from_numpy(np.load(render_npy))
-        torchvision.utils.save_image(render_npy.permute(2,0,1)/2+0.5, output_path)
+        render_npy=torch.from_numpy(np.load(render_npy)).permute(2,0,1)
+        torchvision.utils.save_image((render_npy-render_npy.min())/(render_npy.max()-render_npy.min()), output_path)
 
 
 def main():

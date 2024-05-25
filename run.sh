@@ -28,5 +28,5 @@ elif [ "$#" -eq 3 ]; then
     python autoencoder/test.py --dataset_name ${dataset_name} --dataset_path data/${dataset_name} # preprocess encode 512-dim to 3-dim
     python train.py -s data/${dataset_name} -m output/${dataset_name}_3d_${feature_level} --start_checkpoint data/${dataset_name}/output/${dataset_name}/chkpnt30000.pth --feature_level ${feature_level} --include_feature_3d --eval # train semantics
     python render.py -m output/${dataset_name}_3d_${feature_level}/ --feature_level ${feature_level} --include_feature_3d
-    python eval/evaluate_iou_loc.py --dataset_name ${dataset_name} --feat_dir output/${dataset_name} --ae_ckpt_dir ckpt --output_dir eval_result --json_folder data/lerf_ovs/label/
+    python eval/evaluate_iou_loc.py --dataset_name ${dataset_name} --feat_dir output/${dataset_name} --ae_ckpt_dir ckpt --output_dir eval_result --json_folder data/lerf_ovs/label/ --include_feature_3d
 fi
