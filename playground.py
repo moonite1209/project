@@ -49,7 +49,7 @@ def test():
         torchvision.utils.save_image((render_npy-render_npy.min())/(render_npy.max()-render_npy.min()), output_path)
 
 
-def main():
+def main()->None:
     test()
 
 if __name__ == '__main__':
