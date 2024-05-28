@@ -304,6 +304,12 @@ class GaussianModel:
             l.append('scale_{}'.format(i))
         for i in range(self._rotation.shape[1]):
             l.append('rot_{}'.format(i))
+        if self._language_feature is not None:
+            for i in range(self._language_feature.shape[1]):
+                l.append(f'langauge_feature_{i}')
+        if self._language_feature_3d is not None:
+            for i in range(self._language_feature_3d.shape[1]):
+                l.append(f'langauge_feature_3d_{i}')
         return l
 
     def save_ply(self, path):
@@ -321,6 +327,10 @@ class GaussianModel:
 
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
         attributes = np.concatenate((xyz, normals, f_dc, f_rest, opacities, scale, rotation), axis=1)
+        if self._language_feature is not None:
+            attributes = np.concatenate((attributes, self._language_feature.detach().cpu().numpy()/2+0.5), axis=1)
+        if self._language_feature_3d is not None:
+            attributes = np.concatenate((attributes, self._language_feature_3d.detach().cpu().numpy()/2+0.5), axis=1)
         elements[:] = list(map(tuple, attributes))
         el = PlyElement.describe(elements, 'vertex')
         PlyData([el]).write(path)
