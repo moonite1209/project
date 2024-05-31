@@ -328,9 +328,9 @@ class GaussianModel:
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
         attributes = np.concatenate((xyz, normals, f_dc, f_rest, opacities, scale, rotation), axis=1)
         if self._language_feature is not None:
-            attributes = np.concatenate((attributes, self._language_feature.detach().cpu().numpy()/2+0.5), axis=1)
+            attributes = np.concatenate((attributes, (self._language_feature/self._language_feature.norm(dim=-1,keepdim=True)).detach().cpu().numpy()/2+0.5), axis=1)
         if self._language_feature_3d is not None:
-            attributes = np.concatenate((attributes, self._language_feature_3d.detach().cpu().numpy()/2+0.5), axis=1)
+            attributes = np.concatenate((attributes, (self._language_feature_3d/self._language_feature_3d.norm(dim=-1,keepdim=True)).detach().cpu().numpy()/2+0.5), axis=1)
         elements[:] = list(map(tuple, attributes))
         el = PlyElement.describe(elements, 'vertex')
         PlyData([el]).write(path)

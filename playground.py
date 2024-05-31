@@ -90,7 +90,7 @@ def save_ply():
 
 
 def main()->None:
-    gaussian_test()
+    save_ply()
 
 if __name__ == '__main__':
     main()
