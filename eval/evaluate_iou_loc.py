@@ -313,6 +313,7 @@ if __name__ == "__main__":
     parser.add_argument("--mask_thresh", type=float, default=0.4)
     parser.add_argument("--include_feature", action="store_true")
     parser.add_argument("--include_feature_3d", action="store_true")
+    parser.add_argument("--mode", type=str,default='ours')
     parser.add_argument('--encoder_dims',
                         nargs = '+',
                         type=int,
@@ -328,9 +329,9 @@ if __name__ == "__main__":
     # NOTE config setting
     dataset_name = args.dataset_name
     mask_thresh = args.mask_thresh
-    if(args.include_feature_3d):
+    if(args.mode=='ours'):
         feat_dir = [os.path.join(args.feat_dir, dataset_name+f"_3d_{i}", "train/ours_None/renders_npy") for i in range(1,4)]
-    if(args.include_feature):
+    if(args.mode=='langsplat'):
         feat_dir = [os.path.join(args.feat_dir, dataset_name+f"_{i}", "train/ours_None/renders_npy") for i in range(1,4)]
     output_path = os.path.join(args.output_dir, dataset_name)
     ae_ckpt_path = os.path.join(args.ae_ckpt_dir, dataset_name, "best_ckpt.pth")

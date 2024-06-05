@@ -38,13 +38,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
 
-    if opt.include_feature or opt.include_feature_3d:
+    if opt.mode=='langsplat' or opt.mode=='ours':
         if not checkpoint:
             raise ValueError("checkpoint missing!!!!!")
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         print(f'loaded {model_params[1].shape[0]} points')
-        if len(model_params) == 12 and (opt.include_feature or opt.include_feature_3d):
+        if len(model_params) == 12 and (opt.mode=='langsplat' or opt.mode=='ours'):
             first_iter = 0
         gaussians.restore(model_params, opt)
         
@@ -95,16 +95,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         language_feature_3d=render_pkg["language_feature_3d"]
         #(3,H,W), (3,H,W), 
         # Loss
-        if opt.include_feature:
+        if opt.mode=='langsplat':
             # (3, H, W)    (1, W, H)
             gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
             Ll1 = l1_loss(language_feature*language_feature_mask, gt_language_feature*language_feature_mask)            
             loss = Ll1
-        elif opt.include_feature_3d:
+        elif opt.mode=='ours':
             gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
             Ll1 = l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)            
             loss = Ll1 #(1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
-        else:
+        elif opt.mode=='3dgs':
             gt_image = viewpoint_cam.original_image.cuda()
             Ll1 = l1_loss(image, gt_image)
             loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
@@ -126,7 +126,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 scene.save(iteration)
 
             # Densification
-            if not (opt.include_feature or opt.include_feature_3d):
+            if opt.mode=='3dgs':
                 if iteration < opt.densify_until_iter:
                     # Keep track of max radii in image-space for pruning
                     gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
@@ -146,7 +146,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
-                torch.save((gaussians.capture(opt.include_feature, opt.include_feature_3d), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
+                torch.save((gaussians.capture(opt.mode), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
             
 def prepare_output_and_logger(args):    
     if not args.model_path:

@@ -78,6 +78,14 @@ def save_ply():
     args = parser.parse_args(sys.argv[1:])
 
     paths=glob.glob('output/lerf_ovs/*3d*',recursive=True)
+    paths=['output/lerf_ovs/figurines_1','output/lerf_ovs/figurines_2','output/lerf_ovs/figurines_3',
+           'output/lerf_ovs/ramen_1','output/lerf_ovs/ramen_2','output/lerf_ovs/ramen_3',
+           'output/lerf_ovs/teatime_1','output/lerf_ovs/teatime_2','output/lerf_ovs/teatime_3',
+           'output/lerf_ovs/waldo_kitchen_1','output/lerf_ovs/waldo_kitchen_2','output/lerf_ovs/waldo_kitchen_3']
+    paths3d=['output/lerf_ovs/figurines_3d_1','output/lerf_ovs/figurines_3d_2','output/lerf_ovs/figurines_3d_3',
+           'output/lerf_ovs/ramen_3d_1','output/lerf_ovs/ramen_3d_2','output/lerf_ovs/ramen_3d_3',
+           'output/lerf_ovs/teatime_3d_1','output/lerf_ovs/teatime_3d_2','output/lerf_ovs/teatime_3d_3',
+           'output/lerf_ovs/waldo_kitchen_3d_1','output/lerf_ovs/waldo_kitchen_3d_2','output/lerf_ovs/waldo_kitchen_3d_3']
     print(paths)
     for path in tqdm(paths):
         pth=os.path.join(path,'chkpnt30000.pth')
@@ -87,7 +95,27 @@ def save_ply():
         gaussians.restore(params, args, 'eval')
         gaussians.save_ply(ply)
 
+def save_ply_with_similarity(model_path):
+    parser = ArgumentParser(description="Training script parameters")
+    lp = ModelParams(parser)
+    op = OptimizationParams(parser)
+    pp = PipelineParams(parser)
+    parser.add_argument('--ip', type=str, default="127.0.0.1")
+    parser.add_argument('--port', type=int, default=55555)
+    parser.add_argument('--debug_from', type=int, default=-1)
+    parser.add_argument('--detect_anomaly', action='store_true', default=False)
+    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--start_checkpoint", type=str, default = None)
+    args = parser.parse_args(sys.argv[1:])
 
+    gaussians = GaussianModel(args.sh_degree)
+    params, iter = torch.load(os.path.join(model_path,'chkpnt30000.pth'))
+    gaussians.restore(params, args, 'eval')
+    
+    gaussians.save_ply(ply)
 
 def main()->None:
     save_ply()

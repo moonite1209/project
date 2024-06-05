@@ -61,8 +61,8 @@ class GaussianModel:
         self.spatial_lr_scale = 0
         self.setup_functions()
 
-    def capture(self, include_feature=False, include_feature_3d=False):
-        if include_feature:
+    def capture(self, mode):
+        if mode=='langsplat':
             assert self._language_feature is not None, "没有设置language feature"
             return (
                 self.active_sh_degree,
@@ -79,7 +79,7 @@ class GaussianModel:
                 self.optimizer.state_dict(),
                 self.spatial_lr_scale,
             )
-        elif include_feature_3d:
+        elif mode=='ours':
             assert self._language_feature_3d is not None, "没有设置language feature 3d"
             return (
                 self.active_sh_degree,
@@ -96,7 +96,7 @@ class GaussianModel:
                 self.optimizer.state_dict(),
                 self.spatial_lr_scale,
             )
-        else:
+        elif mode=='3dgs':
             return (
                 self.active_sh_degree,
                 self._xyz,
