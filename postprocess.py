@@ -112,13 +112,11 @@ def save_ply_with_similarity(model_path):
     args = parser.parse_args(sys.argv[1:])
 
     gaussians = GaussianModel(args.sh_degree)
-    params, iter = torch.load(os.path.join(model_path,'chkpnt30000.pth'))
-    gaussians.restore(params, args, 'eval')
-    
-    gaussians.save_ply(ply)
+    gaussians.load_ply(os.path.join(model_path,'point_cloud/iteration_30000/point_cloud.ply'),'ours')
+    gaussians.save_ply()
 
 def main()->None:
-    save_ply()
+    save_ply_with_similarity('/home/moonite/code/LangSplat/output/lerf_ovs/waldo_kitchen_3d_3')
 
 if __name__ == '__main__':
     main()

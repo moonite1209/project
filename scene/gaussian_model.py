@@ -387,7 +387,7 @@ class GaussianModel:
         elif mode=='langsplat':
             langauge_feature = np.stack((np.asarray(plydata.elements[0]["langauge_feature_0"]),
                                          np.asarray(plydata.elements[0]["langauge_feature_1"]),
-                                         np.asarray(plydata.elements[0]["langauge_feature_2"])),  axis=1)
+                                         np.asarray(plydata.elements[0]["langauge_feature_2"])),  axis=1)*2-1
             self._xyz = torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(False)
             self._features_dc = torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
             self._features_rest = torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
@@ -398,7 +398,7 @@ class GaussianModel:
         elif mode=='ours':
             langauge_feature_3d = np.stack((np.asarray(plydata.elements[0]["langauge_feature_3d_0"]),
                                             np.asarray(plydata.elements[0]["langauge_feature_3d_1"]),
-                                            np.asarray(plydata.elements[0]["langauge_feature_3d_2"])),  axis=1)
+                                            np.asarray(plydata.elements[0]["langauge_feature_3d_2"])),  axis=1)*2-1
             self._xyz = torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(False)
             self._features_dc = torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
             self._features_rest = torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
