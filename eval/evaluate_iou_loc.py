@@ -311,8 +311,6 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--json_folder", type=str, default=None)
     parser.add_argument("--mask_thresh", type=float, default=0.4)
-    parser.add_argument("--include_feature", action="store_true")
-    parser.add_argument("--include_feature_3d", action="store_true")
     parser.add_argument("--mode", type=str,default='ours')
     parser.add_argument('--encoder_dims',
                         nargs = '+',

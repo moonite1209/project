@@ -76,5 +76,5 @@ for e in klass:
 klass()
 klass.attr=1
 klass.data
-print(dir('klass'))
-print(dir(str))
+print(dir(object))
+print(dir(type))

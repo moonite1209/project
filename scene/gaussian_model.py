@@ -114,7 +114,7 @@ class GaussianModel:
     
     def restore(self, model_args, training_args, mode='train'):
         if len(model_args) == 13: # 这是一个feature训练时保存的ckpt
-            if training_args.include_feature:
+            if training_args.mode=='langsplat':
                 (self.active_sh_degree, 
                 self._xyz, 
                 self._features_dc, 
@@ -128,7 +128,7 @@ class GaussianModel:
                 denom,
                 opt_dict, 
                 self.spatial_lr_scale) = model_args
-            elif training_args.include_feature_3d:
+            elif training_args.mode=='ours':
                 (self.active_sh_degree, 
                 self._xyz, 
                 self._features_dc, 
@@ -155,7 +155,7 @@ class GaussianModel:
             denom,
             opt_dict, 
             self.spatial_lr_scale) = model_args
-            if mode == 'train' and not training_args.include_feature and not training_args.include_feature_3d: # 如果是以原始gs为初始化来训练feature的话，就不需要restore optimizer
+            if mode == 'train' and training_args.mode=='3dgs': # 如果是以原始gs为初始化来训练feature的话，就不需要restore optimizer
                 self.optimizer.load_state_dict(opt_dict)
         
         if mode == 'train':
@@ -240,33 +240,37 @@ class GaussianModel:
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         
-        if training_args.include_feature or training_args.include_feature_3d:
-            l=[]
-            if training_args.include_feature:
-                if self._language_feature is None or self._language_feature.shape[0] != self._xyz.shape[0]:
-                    # 开始feature训练的时候，往模型中加入language feature参数
-                    language_feature = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
-                    self._language_feature = nn.Parameter(language_feature.requires_grad_(True))
-                    
-                l.append(
-                    {'params': [self._language_feature], 'lr': training_args.language_feature_lr, "name": "language_feature"}, # TODO: training_args.language_feature_lr
-                )
-            if training_args.include_feature_3d:
-                if self._language_feature_3d is None or self._language_feature_3d.shape[0] != self._xyz.shape[0]:
-                    # 开始feature训练的时候，往模型中加入language feature参数
-                    language_feature_3d = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
-                    self._language_feature_3d = nn.Parameter(language_feature_3d.requires_grad_(True))
-                    
-                l.append(
-                    {'params': [self._language_feature_3d], 'lr': training_args.language_feature_3d_lr, "name": "language_feature_3d"}, # TODO: training_args.language_feature_3d_lr
-                )
+        if training_args.mode=='langsplat':
+            if self._language_feature is None or self._language_feature.shape[0] != self._xyz.shape[0]:
+                # 开始feature训练的时候，往模型中加入language feature参数
+                language_feature = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
+                self._language_feature = nn.Parameter(language_feature.requires_grad_(True))
+                
+            l=[
+                {'params': [self._language_feature], 'lr': training_args.language_feature_lr, "name": "language_feature"}, # TODO: training_args.language_feature_lr
+            ]
             self._xyz.requires_grad_(False)
             self._features_dc.requires_grad_(False)
             self._features_rest.requires_grad_(False)
             self._scaling.requires_grad_(False)
             self._rotation.requires_grad_(False)
             self._opacity.requires_grad_(False)
-        else:
+        elif training_args.mode=='ours':
+            if self._language_feature_3d is None or self._language_feature_3d.shape[0] != self._xyz.shape[0]:
+                # 开始feature训练的时候，往模型中加入language feature参数
+                language_feature_3d = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
+                self._language_feature_3d = nn.Parameter(language_feature_3d.requires_grad_(True))
+                
+            l=[
+                {'params': [self._language_feature_3d], 'lr': training_args.language_feature_3d_lr, "name": "language_feature_3d"}, # TODO: training_args.language_feature_3d_lr
+            ]
+            self._xyz.requires_grad_(False)
+            self._features_dc.requires_grad_(False)
+            self._features_rest.requires_grad_(False)
+            self._scaling.requires_grad_(False)
+            self._rotation.requires_grad_(False)
+            self._opacity.requires_grad_(False)
+        elif training_args.mode=='3dgs':
             l = [
                 {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
                 {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
@@ -340,7 +344,7 @@ class GaussianModel:
         optimizable_tensors = self.replace_tensor_to_optimizer(opacities_new, "opacity")
         self._opacity = optimizable_tensors["opacity"]
 
-    def load_ply(self, path):
+    def load_ply(self, path, mode = '3dgs'):
         plydata = PlyData.read(path)
 
         xyz = np.stack((np.asarray(plydata.elements[0]["x"]),

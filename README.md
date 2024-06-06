@@ -79,7 +79,7 @@ conda activate langsplat
 Download the pretrained model to ```output/```, then simply use
 
 ```shell
-python render.py -m output/$CASENAME --include_feature
+python render.py -m output/$CASENAME --mode langsplat
 ```
 
 

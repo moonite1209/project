@@ -82,8 +82,6 @@ class OptimizationParams(ParamGroup):
         self.opacity_lr = 0.05
         self.language_feature_lr = 0.0025 # TODO: update
         self.language_feature_3d_lr = 0.0025 # TODO: update
-        self.include_feature = False # Set to False if train the original gs
-        self.include_feature_3d = False # Set to False if train the original gs
         self.mode = '3dgs'
         self.scaling_lr = 0.005
         self.rotation_lr = 0.001

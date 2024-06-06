@@ -226,10 +226,6 @@ if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     print(args)
-    # if args.include_feature:
-    #     args.model_path = args.model_path + f"_{str(args.feature_level)}"
-    # elif args.include_feature_3d:
-    #     args.model_path = args.model_path + f"_3d_{str(args.feature_level)}"
     print("Optimizing " + args.model_path)
 
     # Initialize system state (RNG)
