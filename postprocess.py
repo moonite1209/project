@@ -134,8 +134,9 @@ def save_ply_with_similarity():
     clip.set_positives(pharses)
     pharses_rel = clip.get_relevancy_pc(lf)
     print(len(pharses_rel))
-    
+
     for index, item in enumerate(pharses):
+        print(f'saving {os.path.join(os.path.basename(pc_path), f'relevancy_{item}.ply')}')
         gaussians.save_ply(os.path.join(os.path.basename(pc_path), f'relevancy_{item}.ply'), relevancy=pharses_rel[index].unsqueeze(-1).detach().cpu().numpy())
 
 def main()->None:
