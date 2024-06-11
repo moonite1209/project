@@ -136,8 +136,9 @@ def save_ply_with_similarity():
     print(len(pharses_rel))
 
     for index, item in enumerate(pharses):
-        print(f'saving {os.path.join(os.path.basename(pc_path), f'relevancy_{item}.ply')}')
-        gaussians.save_ply(os.path.join(os.path.basename(pc_path), f'relevancy_{item}.ply'), relevancy=pharses_rel[index].unsqueeze(-1).detach().cpu().numpy())
+        save_path=os.path.join(os.path.dirname(pc_path), f'relevancy_{item.replace(' ', '_')}.ply')
+        print(f'saving {save_path}')
+        gaussians.save_ply(save_path, relevancy=pharses_rel[index].unsqueeze(-1).detach().cpu().numpy())
 
 def main()->None:
     save_ply_with_similarity()
