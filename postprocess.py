@@ -129,7 +129,7 @@ def save_ply_with_similarity():
 
     lf3=gaussians.get_language_feature_3d
     print(lf3.shape)
-    lf=codec(lf3)
+    lf=codec.decode(lf3)
     print(lf.shape)
     clip.set_positives(pharses)
     pharses_rel = clip.get_relevancy_pc(lf)
