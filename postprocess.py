@@ -122,7 +122,7 @@ def save_ply_with_similarity():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     clip = OpenCLIPNetwork(device)
-    checkpoint = torch.load(os.path.join(args.ae_ckpt_dir, args.dataset_name, "best_ckpt.pth"), map_location=device)
+    checkpoint = torch.load(args.ae_ckpt_path, map_location=device)
     codec = Autoencoder(args.encoder_dims, args.decoder_dims).to(device)
     codec.load_state_dict(checkpoint)
     codec.eval()
