@@ -132,7 +132,7 @@ def save_ply_with_similarity():
     codec.load_state_dict(checkpoint)
     codec.eval()
 
-    lf3=gaussians.get_language_feature_3d
+    lf3=gaussians.get_language_feature_3d if args.mode=='ours' else gaussians.get_language_feature
     print(lf3.shape)
     lf=codec.decode(lf3)
     print(lf.shape)
