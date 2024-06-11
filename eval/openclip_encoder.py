@@ -2,6 +2,7 @@
 import torch
 import torchvision
 import open_clip
+import numpy as np
 
 
 class OpenCLIPNetwork:
@@ -43,17 +44,17 @@ class OpenCLIPNetwork:
         # embed: 32768x512
         phrases_embeds = torch.cat([self.pos_embeds, self.neg_embeds], dim=0)
         p = phrases_embeds.to(embed.dtype)
-        output = torch.mm(embed, p.T)
-        positive_vals = output[..., positive_id : positive_id + 1]
-        negative_vals = output[..., len(self.positives) :]
+        output = torch.mm(embed, p.T) # (n_lf,n_pos+n_neg)
+        positive_vals = output[..., positive_id : positive_id + 1] # (n_lf, 1)
+        negative_vals = output[..., len(self.positives) :] # (n_lf, n_negs)
         repeated_pos = positive_vals.repeat(1, len(self.negatives))
 
-        sims = torch.stack((repeated_pos, negative_vals), dim=-1)
-        softmax = torch.softmax(10 * sims, dim=-1)
-        best_id = softmax[..., 0].argmin(dim=1)
+        sims = torch.stack((repeated_pos, negative_vals), dim=-1) # (n_lf, n_negs, 2)
+        softmax = torch.softmax(10 * sims, dim=-1) # (n_lf, n_negs, 2)
+        best_id = softmax[..., 0].argmin(dim=1) # (n_lf)
         return torch.gather(softmax, 1, best_id[..., None, None].expand(best_id.shape[0], len(self.negatives), 2))[
             :, 0, :
-        ]
+        ] # (n_lf, 2)
 
     def encode_image(self, input, mask=None):
         processed_input = self.process(input).half()
@@ -110,3 +111,11 @@ class OpenCLIPNetwork:
         
         relev_map = torch.stack(n_levels_sims).view(n_levels, n_phrases, h, w)
         return relev_map
+
+    def get_relevancy_pc(self, embeds: torch.Tensor):
+        n_phrases = len(self.positives)
+        n_phrases_rel = [None for _ in range(n_phrases)]
+        for j in range(n_phrases):
+            probs = self.get_relevancy(embeds, j)
+            n_phrases_rel[j] = probs[..., 0] #i 尺度上图像与j phrases的相关性[0~1]
+        return n_phrases_rel # (n_pos, P)

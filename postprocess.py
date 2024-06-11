@@ -2,6 +2,8 @@ from argparse import ArgumentParser
 from arguments import ModelParams, OptimizationParams, PipelineParams
 from scene import Scene, GaussianModel
 from gaussian_renderer import render
+from autoencoder.model import Autoencoder
+from eval.openclip_encoder import OpenCLIPNetwork
 import torch
 import torchvision
 import os
@@ -95,28 +97,49 @@ def save_ply():
         gaussians.restore(params, args, 'eval')
         gaussians.save_ply(ply)
 
-def save_ply_with_similarity(model_path):
-    parser = ArgumentParser(description="Training script parameters")
-    lp = ModelParams(parser)
-    op = OptimizationParams(parser)
-    pp = PipelineParams(parser)
-    parser.add_argument('--ip', type=str, default="127.0.0.1")
-    parser.add_argument('--port', type=int, default=55555)
-    parser.add_argument('--debug_from', type=int, default=-1)
-    parser.add_argument('--detect_anomaly', action='store_true', default=False)
-    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
-    parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[7_000, 30_000])
-    parser.add_argument("--start_checkpoint", type=str, default = None)
+def save_ply_with_similarity():
+    parser = ArgumentParser(description="save relevancy script parameters")
+    parser.add_argument('--model_path', type=str, default=None)
+    parser.add_argument("--ae_ckpt_path", type=str, default=None)
+    parser.add_argument("--save_path", type=str, default=None)
+    parser.add_argument("--mode", type=str, default='ours')
+    parser.add_argument('--encoder_dims',
+                        nargs = '+',
+                        type=int,
+                        default=[256, 128, 64, 32, 3],
+                        )
+    parser.add_argument('--decoder_dims',
+                        nargs = '+',
+                        type=int,
+                        default=[16, 32, 64, 128, 256, 256, 512],
+                        )
     args = parser.parse_args(sys.argv[1:])
 
+    pharses=('knife', 'yellow desk', 'refrigerator', 'cabinet', 'frog cup', 'plate')
     gaussians = GaussianModel(args.sh_degree)
-    gaussians.load_ply(os.path.join(model_path,'point_cloud/iteration_30000/point_cloud.ply'),'ours')
-    gaussians.save_ply()
+    pc_path=os.path.join(args.model_path, 'point_cloud/iteration_30000/point_cloud.ply')
+    gaussians.load_ply(pc_path,'ours')
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    clip = OpenCLIPNetwork(device)
+    checkpoint = torch.load(os.path.join(args.ae_ckpt_dir, args.dataset_name, "best_ckpt.pth"), map_location=device)
+    codec = Autoencoder(args.encoder_dims, args.decoder_dims).to(device)
+    codec.load_state_dict(checkpoint)
+    codec.eval()
+
+    lf3=gaussians.get_language_feature_3d
+    print(lf3.shape)
+    lf=codec(lf3)
+    print(lf.shape)
+    clip.set_positives(pharses)
+    pharses_rel = clip.get_relevancy_pc(lf)
+    print(pharses_rel.shape)
+
+    for index, item in enumerate(pharses):
+        gaussians.save_ply(os.path.join(os.path.basename(pc_path), f'relevancy_{item}.ply'), {item: pharses_rel[index]})
 
 def main()->None:
-    save_ply_with_similarity('/home/moonite/code/LangSplat/output/lerf_ovs/waldo_kitchen_3d_3')
+    save_ply_with_similarity()
 
 if __name__ == '__main__':
     main()

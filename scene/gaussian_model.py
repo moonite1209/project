@@ -316,7 +316,7 @@ class GaussianModel:
                 l.append(f'langauge_feature_3d_{i}')
         return l
 
-    def save_ply(self, path):
+    def save_ply(self, path, **kargs):
         mkdir_p(os.path.dirname(path))
 
         xyz = self._xyz.detach().cpu().numpy()
@@ -328,6 +328,8 @@ class GaussianModel:
         rotation = self._rotation.detach().cpu().numpy()
 
         dtype_full = [(attribute, 'f4') for attribute in self.construct_list_of_attributes()]
+        for key in kargs.keys():
+            dtype_full.append((key,'f4'))
 
         elements = np.empty(xyz.shape[0], dtype=dtype_full)
         attributes = np.concatenate((xyz, normals, f_dc, f_rest, opacities, scale, rotation), axis=1)
@@ -335,6 +337,8 @@ class GaussianModel:
             attributes = np.concatenate((attributes, (self._language_feature/self._language_feature.norm(dim=-1,keepdim=True)).detach().cpu().numpy()/2+0.5), axis=1)
         if self._language_feature_3d is not None:
             attributes = np.concatenate((attributes, (self._language_feature_3d/self._language_feature_3d.norm(dim=-1,keepdim=True)).detach().cpu().numpy()/2+0.5), axis=1)
+        for key in kargs.keys():
+            attributes = np.concatenate((attributes, kargs[key]), axis=1)
         elements[:] = list(map(tuple, attributes))
         el = PlyElement.describe(elements, 'vertex')
         PlyData([el]).write(path)
