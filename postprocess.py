@@ -116,7 +116,7 @@ def save_ply_with_similarity():
     args = parser.parse_args(sys.argv[1:])
 
     pharses=('knife', 'yellow desk', 'refrigerator', 'cabinet', 'frog cup', 'plate')
-    gaussians = GaussianModel(args.sh_degree)
+    gaussians = GaussianModel(3)
     pc_path=os.path.join(args.model_path, 'point_cloud/iteration_30000/point_cloud.ply')
     gaussians.load_ply(pc_path,'ours')
 
