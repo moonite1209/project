@@ -99,8 +99,8 @@ def save_ply():
 
 def save_ply_with_similarity():
     parser = ArgumentParser(description="save relevancy script parameters")
-    parser.add_argument('--model_path', type=str, default=None)
-    parser.add_argument("--ae_ckpt_path", type=str, default=None)
+    parser.add_argument('--model_path', type=str, required=True)
+    parser.add_argument("--ae_ckpt_path", type=str, required=True)
     parser.add_argument("--save_path", type=str, default=None)
     parser.add_argument("--mode", type=str, default='ours')
     parser.add_argument('--encoder_dims',
@@ -113,12 +113,17 @@ def save_ply_with_similarity():
                         type=int,
                         default=[16, 32, 64, 128, 256, 256, 512],
                         )
+    parser.add_argument('--pharses',
+                        nargs = '+',
+                        type=str,
+                        required=True
+                        )
     args = parser.parse_args(sys.argv[1:])
 
-    pharses=('knife', 'yellow desk', 'refrigerator', 'cabinet', 'frog cup', 'plate')
+    pharses=args.pharses
     gaussians = GaussianModel(3)
     pc_path=os.path.join(args.model_path, 'point_cloud/iteration_30000/point_cloud.ply')
-    gaussians.load_ply(pc_path,'ours')
+    gaussians.load_ply(pc_path, args.mode)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     clip = OpenCLIPNetwork(device)
