@@ -464,6 +464,7 @@ class GaussianModel:
         # self._language_feature = optimizable_tensors["language_feature"]
         self._scaling = optimizable_tensors["scaling"]
         self._rotation = optimizable_tensors["rotation"]
+        self._language_feature_3d = optimizable_tensors["language_feature_3d"]
 
         self.xyz_gradient_accum = self.xyz_gradient_accum[valid_points_mask]
 
