@@ -263,13 +263,19 @@ class GaussianModel:
                 
             l=[
                 {'params': [self._language_feature_3d], 'lr': training_args.language_feature_3d_lr, "name": "language_feature_3d"}, # TODO: training_args.language_feature_3d_lr
+                {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
+                {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
+                {'params': [self._features_rest], 'lr': training_args.feature_lr / 20.0, "name": "f_rest"},
+                {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
+                {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
+                {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
             ]
-            self._xyz.requires_grad_(False)
-            self._features_dc.requires_grad_(False)
-            self._features_rest.requires_grad_(False)
-            self._scaling.requires_grad_(False)
-            self._rotation.requires_grad_(False)
-            self._opacity.requires_grad_(False)
+            self._xyz.requires_grad_(True)
+            self._features_dc.requires_grad_(True)
+            self._features_rest.requires_grad_(True)
+            self._scaling.requires_grad_(True)
+            self._rotation.requires_grad_(True)
+            self._opacity.requires_grad_(True)
         elif training_args.mode=='3dgs':
             l = [
                 {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},

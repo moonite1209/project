@@ -38,7 +38,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
 
-    if opt.mode=='langsplat' or opt.mode=='ours':
+    if opt.mode=='langsplat':
         if not checkpoint:
             raise ValueError("checkpoint missing!!!!!")
     if checkpoint:
@@ -102,7 +102,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             loss = Ll1
         elif opt.mode=='ours':
             gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
-            Ll1 = l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)            
+            gt_image = viewpoint_cam.original_image.cuda()
+            Ll1 = l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)+l1_loss(image, gt_image)
             loss = Ll1 #(1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
         elif opt.mode=='3dgs':
             gt_image = viewpoint_cam.original_image.cuda()
