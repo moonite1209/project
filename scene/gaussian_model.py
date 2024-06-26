@@ -403,12 +403,12 @@ class GaussianModel:
             langauge_feature_3d = np.stack((np.asarray(plydata.elements[0]["langauge_feature_3d_0"]),
                                             np.asarray(plydata.elements[0]["langauge_feature_3d_1"]),
                                             np.asarray(plydata.elements[0]["langauge_feature_3d_2"])),  axis=1)*2-1
-            self._xyz = torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(False)
-            self._features_dc = torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
-            self._features_rest = torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
-            self._opacity = torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(False)
-            self._scaling = torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(False)
-            self._rotation = torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(False)
+            self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(False))
+            self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False))
+            self._features_rest = nn.Parameter(torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False))
+            self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(False))
+            self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(False))
+            self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(False))
             self._language_feature_3d= nn.Parameter(torch.tensor(langauge_feature_3d, dtype=torch.float, device='cuda').requires_grad_(True))
 
 
