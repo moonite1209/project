@@ -99,7 +99,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     # start_time = time.time()
 
-    rendered_image, language_feature_image, language_feature_3d, blending_language_feature_3d, radii = rasterizer(
+    rendered_image, language_feature_image, language_feature_3d, blending_language_feature_3d, radii, max_contributor, max_contribute = rasterizer(
         means3D = means3D,
         means2D = means2D,
         shs = shs,
@@ -121,4 +121,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
             "blending_language_feature_3d": blending_language_feature_3d,
             "viewspace_points": screenspace_points,
             "visibility_filter" : radii > 0,
-            "radii": radii}
+            "radii": radii,
+            "max_contributor": max_contributor,
+            "max_contribute": max_contribute}
