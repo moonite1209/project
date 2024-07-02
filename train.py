@@ -104,8 +104,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         elif opt.mode=='ours':
             gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
             gt_image = viewpoint_cam.original_image.cuda()
-            Ll1 = l1_loss(blending_language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)+l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)+l1_loss(image, gt_image)
-            loss = Ll1 #(1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
+            Ll1 = l1_loss(blending_language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)+l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)
+            rgb_loss = (1.0 - opt.lambda_dssim) * l1_loss(image, gt_image) + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
+            loss = Ll1 + rgb_loss #(1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
         elif opt.mode=='3dgs':
             gt_image = viewpoint_cam.original_image.cuda()
             Ll1 = l1_loss(image, gt_image)
