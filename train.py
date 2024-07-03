@@ -131,12 +131,16 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             # Densification
             if opt.mode=='3dgs' or opt.mode=='ours':
+                if iteration < 30000: #opt.filter_from_iter
+                    gaussians.add_filter_stats(visibility_filter, max_contributor, max_contribute, max_contribute_accm)
+                    if iteration > 25000 and iteration % 400 == 0:
+                        gaussians.max_contributor_filter()
                 if iteration < opt.densify_until_iter:
                     # Keep track of max radii in image-space for pruning
                     gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
                     gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter, max_contributor, max_contribute, max_contribute_accm)
 
-                    if iteration > opt.densify_from_iter and iteration % 400 == 0:
+                    if iteration > opt.densify_from_iter and iteration % opt.densification_interval == 0:
                         size_threshold = 20 if iteration > opt.opacity_reset_interval else None
                         gaussians.densify_and_prune(opt.densify_grad_threshold, 0.005, scene.cameras_extent, size_threshold)
                     

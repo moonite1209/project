@@ -576,14 +576,15 @@ class GaussianModel:
 
         # return new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation, new_language_feature_3d, torch.zeros(self._xyz.shape[0], device="cuda")
 
-
-    def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
-        #TODO
+    def max_contributor_filter(self):
         max_contribute = self.max_contribute / self.denom.squeeze(-1)
         max_contribute[max_contribute.isnan()] = 0.0
         prune_mask = torch.where(max_contribute==0, True, False)
         print(f'{max_contribute.shape=}, {prune_mask.shape=}, {self.max_contribute.shape}, {self.denom.shape}, {prune_mask.sum()}')
         self.prune_points(prune_mask)
+
+    def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
+        #TODO
 
         self.densify_and_clone(max_grad, extent)
         self.densify_and_split(max_grad, extent)
@@ -597,6 +598,9 @@ class GaussianModel:
         self.prune_points(prune_mask)
 
         torch.cuda.empty_cache()
+
+    def add_filter_stats(self, update_filter, max_contributor, max_contribute, max_contribute_accm):
+        self.max_contribute[update_filter]+=max_contribute_accm[update_filter]
 
     def add_densification_stats(self, viewspace_point_tensor, update_filter, max_contributor, max_contribute, max_contribute_accm):
         self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
