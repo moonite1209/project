@@ -1,5 +1,7 @@
 from collections.abc import Iterable
 from typing import Any
+import torch
+import numpy as np
 
 
 class Klass:
@@ -78,3 +80,23 @@ klass.attr=1
 klass.data
 print(dir(object))
 print(dir(type))
+
+# ws=torch.zeros((10,1), dtype=torch.float)
+# pick=torch.tensor([[1,1],[1,1]], dtype=torch.int)
+# print(ws[pick])
+# ws[pick]+=torch.tensor([[2,2],[2,2]]).unsqueeze(-1)
+# print(ws)
+# ttt=torch.tensor([[1,1],[1,1]]).unsqueeze(-1)
+# ttt+=torch.tensor([[2,3],[2,2]]).unsqueeze(-1)
+# print(ttt)
+
+ws=np.zeros((10,1), dtype=np.float32)
+pick=np.array([[1,1],[1,1]], dtype=np.int32)
+print(ws[pick])
+ws[pick]+=np.array([[[4],[4]],[[3],[5]]])
+print(ws)
+t1=np.array([[0]])
+pick=np.array([[0,0],[0,0]])
+print(t1[pick])
+t1[pick]+=np.array([[[1],[2]],[[3],[4]]])
+print(t1)

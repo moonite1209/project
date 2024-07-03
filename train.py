@@ -91,9 +91,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         if (iteration - 1) == debug_from:
             pipe.debug = True
         render_pkg = render(viewpoint_cam, gaussians, pipe, background, opt) #TODO 渲染
-        image, language_feature, viewspace_point_tensor, visibility_filter, radii, max_contributor, max_contribute = render_pkg["render"], render_pkg["language_feature_image"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
+        image, language_feature, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["language_feature_image"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
         language_feature_3d=render_pkg["language_feature_3d"]
         blending_language_feature_3d=render_pkg["blending_language_feature_3d"]
+        max_contributor, max_contribute, max_contribute_accm = render_pkg["max_contributor"], render_pkg["max_contribute"], render_pkg["max_contribute_accm"]
         #(3,H,W), (3,H,W), 
         # Loss
         if opt.mode=='langsplat':
@@ -133,7 +134,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 if iteration < opt.densify_until_iter:
                     # Keep track of max radii in image-space for pruning
                     gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
-                    gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
+                    gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter, max_contribute_accm)
 
                     if iteration > opt.densify_from_iter and iteration % opt.densification_interval == 0:
                         size_threshold = 20 if iteration > opt.opacity_reset_interval else None
