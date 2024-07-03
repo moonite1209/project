@@ -582,7 +582,7 @@ class GaussianModel:
         max_contribute = self.max_contribute / self.denom
         max_contribute[max_contribute.isnan()] = 0.0
         prune_mask = torch.where(max_contribute==0, True, False)
-        print(f'{max_contribute.shape=}, {prune_mask.shape=}')
+        print(f'{max_contribute.shape}, {prune_mask.shape}')
         self.prune_points(prune_mask)
 
         self.densify_and_clone(max_grad, extent)
