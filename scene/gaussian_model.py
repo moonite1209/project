@@ -582,7 +582,7 @@ class GaussianModel:
         max_contribute = self.max_contribute / self.denom.squeeze(-1)
         max_contribute[max_contribute.isnan()] = 0.0
         prune_mask = torch.where(max_contribute==0, True, False)
-        print(f'{max_contribute.shape}, {prune_mask.shape}, {self.max_contribute.shape}, {self.denom.shape}')
+        print(f'{max_contribute.shape=}, {prune_mask.shape=}, {self.max_contribute.shape}, {self.denom.shape}, {prune_mask.sum()}')
         self.prune_points(prune_mask)
 
         self.densify_and_clone(max_grad, extent)
@@ -598,7 +598,8 @@ class GaussianModel:
 
         torch.cuda.empty_cache()
 
-    def add_densification_stats(self, viewspace_point_tensor, update_filter, max_contribute_accm):
+    def add_densification_stats(self, viewspace_point_tensor, update_filter, max_contributor, max_contribute, max_contribute_accm):
         self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
         self.denom[update_filter] += 1
-        self.max_contribute[update_filter]+=max_contribute_accm[update_filter]
+        # self.max_contribute[update_filter]+=max_contribute_accm[update_filter]
+        self.max_contribute[max_contributor]+=max_contribute
