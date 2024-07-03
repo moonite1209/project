@@ -579,7 +579,7 @@ class GaussianModel:
 
     def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
         #TODO
-        max_contribute = self.max_contribute / self.denom
+        max_contribute = self.max_contribute / self.denom.squeeze(-1)
         max_contribute[max_contribute.isnan()] = 0.0
         prune_mask = torch.where(max_contribute==0, True, False)
         print(f'{max_contribute.shape}, {prune_mask.shape}, {self.max_contribute.shape}, {self.denom.shape}')
