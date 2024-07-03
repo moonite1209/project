@@ -115,7 +115,7 @@ class GaussianModel:
             )
     
     def restore(self, model_args, training_args, mode='train'):
-        if len(model_args) == 13: # 这是一个feature训练时保存的ckpt
+        if len(model_args) == 13 or 14: # 这是一个feature训练时保存的ckpt
             if training_args.mode=='langsplat':
                 (self.active_sh_degree, 
                 self._xyz, 
@@ -140,7 +140,8 @@ class GaussianModel:
                 self._opacity,
                 self._language_feature_3d,
                 self.max_radii2D, 
-                xyz_gradient_accum, 
+                xyz_gradient_accum,
+                max_contribute,
                 denom,
                 opt_dict, 
                 self.spatial_lr_scale) = model_args
