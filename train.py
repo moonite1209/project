@@ -131,15 +131,15 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             # Densification
             if opt.mode=='3dgs' or opt.mode=='ours':
-                # if iteration == opt.max_contributor_filter_iter:
-                #     assert opt.max_contributor_filter_iter>=opt.densify_until_iter
-                #     for camera in scene.getTrainCameras().copy():
-                #         render_pkg = render(camera, gaussians, pipe, background, opt)
-                #         gaussians.max_contribute += render_pkg["max_contribute_accm"]
-                #     prune_mask = torch.where(gaussians.max_contribute == 0, True, False)
-                #     print(f"{gaussians.max_contribute=}, {prune_mask.shape=}, {prune_mask.sum()=}")
-                #     gaussians.prune_points(prune_mask)
-                #     gaussians.max_contribute = 0
+                if iteration == opt.max_contributor_filter_iter:
+                    assert opt.max_contributor_filter_iter>=opt.densify_until_iter
+                    for camera in scene.getTrainCameras().copy():
+                        render_pkg = render(camera, gaussians, pipe, background, opt)
+                        gaussians.max_contribute += render_pkg["max_contribute_accm"]
+                    prune_mask = torch.where(gaussians.max_contribute == 0, True, False)
+                    print(f"{gaussians.max_contribute=}, {prune_mask.shape=}, {prune_mask.sum()=}")
+                    gaussians.prune_points(prune_mask)
+                    gaussians.max_contribute = 0
                         
                 if iteration < opt.densify_until_iter:
                     # Keep track of max radii in image-space for pruning
@@ -184,11 +184,12 @@ def prepare_output_and_logger(args):
         print("Tensorboard not available: not logging progress")
     return tb_writer
 
-def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
+def training_report(tb_writer: SummaryWriter, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
     if tb_writer:
         tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
         tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
         tb_writer.add_scalar('iter_time', elapsed, iteration)
+        tb_writer.add_scalar('total_points', scene.gaussians.get_xyz.shape[0], iteration)
 
     # Report test and samples of training set
     if iteration in testing_iterations:
@@ -205,9 +206,9 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
                     image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0)
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
                     if tb_writer and (idx < 5):
-                        tb_writer.add_images(config['name'] + "_view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
+                        tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/render", image[None], global_step=iteration)
                         if iteration == testing_iterations[0]:
-                            tb_writer.add_images(config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image[None], global_step=iteration)
+                            tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/ground_truth", gt_image[None], global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
                 psnr_test /= len(config['cameras'])
@@ -219,7 +220,6 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
 
         if tb_writer:
             tb_writer.add_histogram("scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
-            tb_writer.add_scalar('total_points', scene.gaussians.get_xyz.shape[0], iteration)
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":
@@ -232,7 +232,7 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=55555)
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
-    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 10000, 15000, 20000, 25000, 30_000])
     parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[7_000, 30_000])
