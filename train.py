@@ -203,7 +203,11 @@ def training_report(tb_writer: SummaryWriter, iteration, Ll1, loss, l1_loss, ela
                 l1_test = 0.0
                 psnr_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
-                    image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs)["render"], 0.0, 1.0)
+                    render_pkg = renderFunc(viewpoint, scene.gaussians, *renderArgs)
+                    semantic_map=render_pkg["language_feature_3d"]
+                    blending_semantic_map=render_pkg["blending_language_feature_3d"]
+                    gt_semantic_map=
+                    image = torch.clamp(render_pkg["render"], 0.0, 1.0)
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
                     if tb_writer and (idx < 5):
                         tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/render", image[None], global_step=iteration)
