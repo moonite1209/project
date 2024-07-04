@@ -525,9 +525,9 @@ class GaussianModel:
         self.max_contribute = torch.zeros((self.get_xyz.shape[0]), device="cuda")
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
-    def densify_and_split(self, grad_threshold, scene_extent, N=2):
-        grads = self.xyz_gradient_accum / self.denom
-        grads[grads.isnan()] = 0.0
+    def densify_and_split(self, grads, grad_threshold, scene_extent, N=2):
+        # grads = self.xyz_gradient_accum / self.denom
+        # grads[grads.isnan()] = 0.0
         # n_init_points = self.get_xyz.shape[0]
         # Extract points that satisfy the gradient condition
         # padded_grad = torch.zeros((n_init_points), device="cuda")
@@ -556,10 +556,10 @@ class GaussianModel:
 
         # return new_xyz, new_features_dc, new_features_rest, new_opacity, new_scaling, new_rotation, new_language_feature_3d, selected_pts_mask
 
-    def densify_and_clone(self, grad_threshold, scene_extent):
+    def densify_and_clone(self, grads, grad_threshold, scene_extent):
         # Extract points that satisfy the gradient condition
-        grads = self.xyz_gradient_accum / self.denom
-        grads[grads.isnan()] = 0.0
+        # grads = self.xyz_gradient_accum / self.denom
+        # grads[grads.isnan()] = 0.0
         selected_pts_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
@@ -586,9 +586,11 @@ class GaussianModel:
 
     def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
         #TODO
+        grads = self.xyz_gradient_accum / self.denom
+        grads[grads.isnan()] = 0.0
 
-        self.densify_and_clone(max_grad, extent)
-        self.densify_and_split(max_grad, extent)
+        self.densify_and_clone(grads, max_grad, extent)
+        self.densify_and_split(grads, max_grad, extent)
 
         prune_mask = (self.get_opacity < min_opacity).squeeze()
         if max_screen_size:
