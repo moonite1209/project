@@ -51,7 +51,6 @@ class ModelParams(ParamGroup):
         self._model_path = "" 
         self._language_features_name = "language_features_dim3"
         self._images = "images"
-        self._semantics = "language_feature_dim3"
         self._resolution = -1
         self._white_background = False
         self._feature_level = -1
