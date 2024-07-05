@@ -99,13 +99,15 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Loss
         if opt.mode=='langsplat':
             # (3, H, W)    (1, W, H)
-            gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
+            gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(feature_level=dataset.feature_level)
             Ll1 = l1_loss(language_feature*language_feature_mask, gt_language_feature*language_feature_mask)            
             loss = Ll1
         elif opt.mode=='ours':
-            gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(language_feature_dir=dataset.lf_path, feature_level=dataset.feature_level)
+            gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(feature_level=dataset.feature_level)
             gt_image = viewpoint_cam.original_image.cuda()
-            Ll1 = l1_loss(blending_language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)+l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)
+            blending_semantic_loss = l1_loss(blending_language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)
+            semantic_loss = l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)
+            Ll1=blending_semantic_loss+semantic_loss
             rgb_loss = (1.0 - opt.lambda_dssim) * l1_loss(image, gt_image) + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
             loss = Ll1 + rgb_loss #(1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
         elif opt.mode=='3dgs':
@@ -124,7 +126,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
-            training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background, opt))
+            training_report(tb_writer, dataset, iteration, blending_semantic_loss, semantic_loss, rgb_loss, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background, opt))
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
@@ -184,9 +186,11 @@ def prepare_output_and_logger(args):
         print("Tensorboard not available: not logging progress")
     return tb_writer
 
-def training_report(tb_writer: SummaryWriter, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
+def training_report(tb_writer: SummaryWriter, dataset, iteration, blending_semantic_loss, semantic_loss, rgb_loss, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
     if tb_writer:
-        tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
+        tb_writer.add_scalar('train_loss_patches/blending_semantic_loss', blending_semantic_loss.item(), iteration)
+        tb_writer.add_scalar('train_loss_patches/semantic_loss', semantic_loss.item(), iteration)
+        tb_writer.add_scalar('train_loss_patches/rgb_loss', rgb_loss.item(), iteration)
         tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
         tb_writer.add_scalar('iter_time', elapsed, iteration)
         tb_writer.add_scalar('total_points', scene.gaussians.get_xyz.shape[0], iteration)
@@ -206,13 +210,15 @@ def training_report(tb_writer: SummaryWriter, iteration, Ll1, loss, l1_loss, ela
                     render_pkg = renderFunc(viewpoint, scene.gaussians, *renderArgs)
                     semantic_map=render_pkg["language_feature_3d"]
                     blending_semantic_map=render_pkg["blending_language_feature_3d"]
-                    gt_semantic_map=
+                    gt_semantic_map, mask=viewpoint.get_language_feature(feature_level=dataset.feature_level)
                     image = torch.clamp(render_pkg["render"], 0.0, 1.0)
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
                     if tb_writer and (idx < 5):
                         tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/render", image[None], global_step=iteration)
+                        tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/render", blending_semantic_map[None]/2+0.5, global_step=iteration)
                         if iteration == testing_iterations[0]:
                             tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/ground_truth", gt_image[None], global_step=iteration)
+                            tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/gound_truth", gt_semantic_map[None]/2+0.5, global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
                 psnr_test /= len(config['cameras'])
