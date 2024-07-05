@@ -210,14 +210,17 @@ def training_report(tb_writer: SummaryWriter, dataset, iteration, blending_seman
                     render_pkg = renderFunc(viewpoint, scene.gaussians, *renderArgs)
                     semantic_map=render_pkg["language_feature_3d"]
                     blending_semantic_map=render_pkg["blending_language_feature_3d"]
+                    semantic_map=render_pkg["language_feature_3d"]
                     gt_semantic_map, mask=viewpoint.get_language_feature(feature_level=dataset.feature_level)
                     image = torch.clamp(render_pkg["render"], 0.0, 1.0)
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
                     if tb_writer and (idx < 5):
                         tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/render", image[None], global_step=iteration)
-                        tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/render", blending_semantic_map[None]/2+0.5, global_step=iteration)
+                        tb_writer.add_images(f"{config['name']}_blending_semantic_{viewpoint.image_name}/render", blending_semantic_map[None]/2+0.5, global_step=iteration)
+                        tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/render", semantic_map[None]/2+0.5, global_step=iteration)
                         if iteration == testing_iterations[0]:
                             tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/ground_truth", gt_image[None], global_step=iteration)
+                            tb_writer.add_images(f"{config['name']}_blending_semantic_{viewpoint.image_name}/gound_truth", gt_semantic_map[None]/2+0.5, global_step=iteration)
                             tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/gound_truth", gt_semantic_map[None]/2+0.5, global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
