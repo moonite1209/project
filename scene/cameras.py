@@ -95,7 +95,7 @@ class Camera(nn.Module):
     #     return point_feature.cuda(), mask.cuda()
 
     def get_language_feature(self, feature_level):
-        seg_map, feature_map = torch.from_numpy(self.segment[feature_level, ...]).cuda(), torch.from_numpy(self.semantic).cuda()
+        seg_map, feature_map = torch.from_numpy(self.segment).cuda(), torch.from_numpy(self.semantic).cuda()
         y, x = torch.meshgrid(torch.arange(0, self.image_height), torch.arange(0, self.image_width))
         x = x.reshape(-1, 1)
         y = y.reshape(-1, 1)
