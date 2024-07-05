@@ -99,6 +99,7 @@ class Camera(nn.Module):
         y, x = torch.meshgrid(torch.arange(0, self.image_height), torch.arange(0, self.image_width))
         x = x.reshape(-1, 1)
         y = y.reshape(-1, 1)
+        print(f"{seg_map.shape=}, {feature_map.shape=}, {y.shape=}, {x.shape=}")
         seg = seg_map[:, y, x].squeeze(-1).long()
         mask = seg != -1
         if feature_level == 0: # default
