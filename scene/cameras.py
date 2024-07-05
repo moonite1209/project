@@ -95,7 +95,7 @@ class Camera(nn.Module):
     #     return point_feature.cuda(), mask.cuda()
 
     def get_language_feature(self, feature_level):
-        return self.segment, self.semantic
+        return torch.from_numpy(self.segment).cuda(), torch.from_numpy(self.semantic).cuda()
     
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):
