@@ -103,8 +103,8 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantics_f
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
 
-        segment_path = os.path.join(semantics_folder, f"{image_name}_f.npy")
-        semantic_path = os.path.join(semantics_folder, f"{image_name}_s.npy")
+        segment_path = os.path.join(semantics_folder, f"{image_name}_s.npy")
+        semantic_path = os.path.join(semantics_folder, f"{image_name}_f.npy")
         segment = np.load(segment_path)
         semantic = np.load(semantic_path)
 
