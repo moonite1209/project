@@ -140,7 +140,7 @@ def storePly(path, xyz, rgb):
     ply_data = PlyData([vertex_element])
     ply_data.write(path)
 
-def readColmapSceneInfo(path, images, eval, llffhold=8):
+def readColmapSceneInfo(path, images, semantics, eval, llffhold=8):
     try:
         cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.bin")
         cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.bin")
@@ -154,7 +154,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
 
     reading_dir = "images" if images == None else images
     # reading_dir_F = "language_feature" if language_feature == None else language_feature
-    cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
+    cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir), semantics_folder=os.path.join(path, "langauge_feature_dim3" if semantics == None else semantics))
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
 
     if eval:
@@ -214,6 +214,11 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             image_name = Path(cam_name).stem
             image = Image.open(image_path)
 
+            # segment_path = os.path.join(path, f"{image_name}_f.npy")
+            # semantic_path = os.path.join(path, f"{image_name}_s.npy")
+            # segment = np.load(segment_path)
+            # semantic = np.load(semantic_path)
+
             # language_feature_path = os.path.join(path, cam_name_F)
             # language_feature_name = Path(cam_name_F).stem
             # language_feature = Image.open(language_feature_path) # TODO: data read
@@ -230,7 +235,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             FovY = fovy 
             FovX = fovx
 
-            cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,  
+            cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image, semantic=semantic, segment=segment,
                               image_path=image_path, 
                               image_name=image_name, width=image.size[0], height=image.size[1]))
             
