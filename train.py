@@ -141,7 +141,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     prune_mask = torch.where(gaussians.max_contribute == 0, True, False)
                     print(f"{gaussians.max_contribute=}, {prune_mask.shape=}, {prune_mask.sum()=}")
                     gaussians.prune_points(prune_mask)
-                    gaussians.max_contribute = 0
+                    gaussians.max_contribute[...] = 0
                         
                 if iteration < opt.densify_until_iter:
                     # Keep track of max radii in image-space for pruning
