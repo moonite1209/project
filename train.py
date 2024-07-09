@@ -108,7 +108,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             blending_semantic_loss = l1_loss(blending_language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)
             semantic_loss = l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)
             Ll1=blending_semantic_loss+semantic_loss
-            rgb_loss = l1_loss(image, gt_image) # (1.0 - opt.lambda_dssim) * l1_loss(image, gt_image) + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
+            rgb_loss = (1.0 - opt.lambda_dssim) * l1_loss(image, gt_image) + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
             loss = Ll1 + rgb_loss #(1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask))
         elif opt.mode=='3dgs':
             gt_image = viewpoint_cam.original_image.cuda()
