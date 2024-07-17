@@ -212,7 +212,7 @@ class GaussianSplattingGUI:
         self.load_model = False
         print("loading model file...")
         self.engine['scene'].load_ply(self.opt.SCENE_PCD_PATH, mode = 'ours')
-        self.do_pca()   # calculate self.proj_mat
+        # self.do_pca()   # calculate self.proj_mat
         self.load_model = True
 
         print("loading model file done.")
@@ -504,6 +504,8 @@ class GaussianSplattingGUI:
             FoVx=fovx,
             FoVy=fovy,
             image=torch.zeros([3, self.height, self.width]),
+            segment=torch.zeros([3, self.height, self.width]),
+            semantic=torch.zeros([3, self.height, self.width]),
             gt_alpha_mask=None,
             image_name=None,
             uid=0,
@@ -541,10 +543,12 @@ class GaussianSplattingGUI:
 
 
     def pca(self, X, n_components=3):
-        n = X.shape[0]
+        X[X.isnan()]=0
+        n = X.shape[0] # (200000, 3)
         mean = torch.mean(X, dim=0)
         X = X - mean
         covariance_matrix = (1 / n) * torch.matmul(X.T, X).float()  # An old torch bug: matmul float32->float16, 
+        covariance_matrix[covariance_matrix.isnan()]=0
         eigenvalues, eigenvectors = torch.linalg.eig(covariance_matrix)
         eigenvalues = torch.norm(eigenvalues, dim=1)
         idx = torch.argsort(-eigenvalues)
@@ -586,7 +590,9 @@ class GaussianSplattingGUI:
         sems = feature_outputs["render"].permute(1, 2, 0)
         H, W, C = sems.shape
         sems /= (torch.norm(sems, dim=-1, keepdim=True) + 1e-6)
-        sem_transed = sems @ self.proj_mat
+        pca = PCA(n_components=3)
+        # sem_transed = sems @ self.proj_mat
+        sem_transed = torch.from_numpy(pca.fit_transform(sems))
         sem_transed_rgb = torch.clip(sem_transed*0.5+0.5, 0, 1)
 
         scale = dpg.get_value('_Scale')
