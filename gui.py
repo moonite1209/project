@@ -572,14 +572,15 @@ class GaussianSplattingGUI:
     @torch.no_grad()
     def fetch_data(self, view_camera):
         
-        scene_outputs = render(view_camera, self.engine['scene'], self.opt, self.bg_color)
-        feature_outputs = render_contrastive_feature(view_camera, self.engine['feature'], self.opt, self.bg_feature)
+        scene_outputs = render(view_camera, self.engine['scene'], self.opt, self.bg_color, mode='ours')
+        # feature_outputs = render_contrastive_feature(view_camera, self.engine['feature'], self.opt, self.bg_feature)
+        feature_outputs = scene_outputs['language_feature_3d']
         if self.cluster_in_3D_flag:
             self.cluster_in_3D_flag = False
             print("Clustering in 3D...")
             self.cluster_in_3D()
             print("Clustering finished.")
-        self.rendered_cluster = None if self.cluster_point_colors is None else render(view_camera, self.engine['scene'], self.opt, self.bg_color, override_color=torch.from_numpy(self.cluster_point_colors).cuda().float())["render"].permute(1, 2, 0)
+        self.rendered_cluster = None if self.cluster_point_colors is None else render(view_camera, self.engine['scene'], self.opt, self.bg_color, mode='3dgs', override_color=torch.from_numpy(self.cluster_point_colors).cuda().float())["render"].permute(1, 2, 0)
         # --- RGB image --- #
         img = scene_outputs["render"].permute(1, 2, 0)  #
 
@@ -587,19 +588,14 @@ class GaussianSplattingGUI:
         depth_score = rgb_score.cpu().numpy().reshape(-1)
 
         # --- semantic image --- #
-        sems = feature_outputs["render"].permute(1, 2, 0)
+        sems = feature_outputs.permute(1, 2, 0)
         H, W, C = sems.shape
         sems /= (torch.norm(sems, dim=-1, keepdim=True) + 1e-6)
         pca = PCA(n_components=3)
         # sem_transed = sems @ self.proj_mat
-        sem_transed = torch.from_numpy(pca.fit_transform(sems))
+        sem_transed = sems # torch.from_numpy(pca.fit_transform(sems.cpu()))
         sem_transed_rgb = torch.clip(sem_transed*0.5+0.5, 0, 1)
 
-        scale = dpg.get_value('_Scale')
-        self.gates = self.engine['scale_gate'](torch.tensor([scale]).cuda())
-        scale_gated_feat = sems * self.gates.unsqueeze(0).unsqueeze(0)
-        scale_gated_feat = torch.nn.functional.normalize(scale_gated_feat, dim = -1, p = 2)
-        
         if self.clear_edit:
             self.new_click_xy = []
             self.clear_edit = False

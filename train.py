@@ -66,7 +66,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 net_image_bytes = None
                 custom_cam, do_training, pipe.convert_SHs_python, pipe.compute_cov3D_python, keep_alive, scaling_modifer = network_gui.receive()
                 if custom_cam != None:
-                    net_image = render(custom_cam, gaussians, pipe, background, opt, scaling_modifer)["render"]
+                    net_image = render(custom_cam, gaussians, pipe, background, '3dgs', scaling_modifer)["render"]
                     net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                 network_gui.send(net_image_bytes, dataset.source_path)
                 if do_training and ((iteration < int(opt.iterations)) or not keep_alive):
@@ -90,7 +90,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Render
         if (iteration - 1) == debug_from:
             pipe.debug = True
-        render_pkg = render(viewpoint_cam, gaussians, pipe, background, opt) #TODO 渲染
+        render_pkg = render(viewpoint_cam, gaussians, pipe, background, 'ours') #TODO 渲染
         image, language_feature, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["language_feature_image"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
         language_feature_3d=render_pkg["language_feature_3d"]
         blending_language_feature_3d=render_pkg["blending_language_feature_3d"]
@@ -136,7 +136,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 if iteration == opt.max_contributor_filter_iter:
                     assert opt.max_contributor_filter_iter>=opt.densify_until_iter
                     for camera in scene.getTrainCameras().copy():
-                        render_pkg = render(camera, gaussians, pipe, background, opt)
+                        render_pkg = render(camera, gaussians, pipe, background, 'ours')
                         gaussians.max_contribute += render_pkg["max_contribute_accm"]
                     prune_mask = torch.where(gaussians.max_contribute == 0, True, False)
                     print(f"{gaussians.max_contribute=}, {prune_mask.shape=}, {prune_mask.sum()=}")
