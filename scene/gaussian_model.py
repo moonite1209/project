@@ -248,22 +248,30 @@ class GaussianModel:
             if self._language_feature is None or self._language_feature.shape[0] != self._xyz.shape[0]:
                 # 开始feature训练的时候，往模型中加入language feature参数
                 language_feature = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
-                self._language_feature = nn.Parameter(language_feature.requires_grad_(True))
-                
-            l=[
-                {'params': [self._language_feature], 'lr': training_args.language_feature_lr, "name": "language_feature"}, # TODO: training_args.language_feature_lr
-            ]
+                self._language_feature = nn.Parameter(language_feature)
+            self._language_feature.requires_grad_(True)
             self._xyz.requires_grad_(False)
             self._features_dc.requires_grad_(False)
             self._features_rest.requires_grad_(False)
             self._scaling.requires_grad_(False)
             self._rotation.requires_grad_(False)
             self._opacity.requires_grad_(False)
+                
+            l=[
+                {'params': [self._language_feature], 'lr': training_args.language_feature_lr, "name": "language_feature"}, # TODO: training_args.language_feature_lr
+            ]
         elif training_args.mode=='ours':
             if self._language_feature_3d is None or self._language_feature_3d.shape[0] != self._xyz.shape[0]:
                 # 开始feature训练的时候，往模型中加入language feature参数
                 language_feature_3d = torch.zeros((self._xyz.shape[0], 3), device="cuda") #每个高斯一个3维feat
-                self._language_feature_3d = nn.Parameter(language_feature_3d.requires_grad_(True))
+                self._language_feature_3d = nn.Parameter(language_feature_3d)
+            self._language_feature_3d.requires_grad_(True)
+            self._xyz.requires_grad_(True)
+            self._features_dc.requires_grad_(True)
+            self._features_rest.requires_grad_(True)
+            self._scaling.requires_grad_(True)
+            self._rotation.requires_grad_(True)
+            self._opacity.requires_grad_(True)
                 
             l=[
                 {'params': [self._language_feature_3d], 'lr': training_args.language_feature_3d_lr, "name": "language_feature_3d"}, # TODO: training_args.language_feature_3d_lr
@@ -274,13 +282,13 @@ class GaussianModel:
                 {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
                 {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
             ]
+        elif training_args.mode=='3dgs':
             self._xyz.requires_grad_(True)
             self._features_dc.requires_grad_(True)
             self._features_rest.requires_grad_(True)
             self._scaling.requires_grad_(True)
             self._rotation.requires_grad_(True)
             self._opacity.requires_grad_(True)
-        elif training_args.mode=='3dgs':
             l = [
                 {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
                 {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
@@ -392,34 +400,34 @@ class GaussianModel:
         for idx, attr_name in enumerate(rot_names):
             rots[:, idx] = np.asarray(plydata.elements[0][attr_name])
         if mode=='3dgs':
-            self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True))
-            self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
-            self._features_rest = nn.Parameter(torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(True))
-            self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(True))
-            self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(True))
-            self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(True))
+            self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda"), False)
+            self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous(), False)
+            self._features_rest = nn.Parameter(torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous(), False)
+            self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda"), False)
+            self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda"), False)
+            self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda"), False)
         elif mode=='langsplat':
             langauge_feature = np.stack((np.asarray(plydata.elements[0]["langauge_feature_0"]),
                                          np.asarray(plydata.elements[0]["langauge_feature_1"]),
                                          np.asarray(plydata.elements[0]["langauge_feature_2"])),  axis=1)*2-1
-            self._xyz = torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(False)
-            self._features_dc = torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
-            self._features_rest = torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False)
-            self._opacity = torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(False)
-            self._scaling = torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(False)
-            self._rotation = torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(False)
-            self._language_feature= nn.Parameter(torch.tensor(langauge_feature, dtype=torch.float, device='cuda').requires_grad_(True))
+            self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda"), False)
+            self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous(), False)
+            self._features_rest = nn.Parameter(torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous(), False)
+            self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda"), False)
+            self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda"), False)
+            self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda"), False)
+            self._language_feature= nn.Parameter(torch.tensor(langauge_feature, dtype=torch.float, device='cuda'), False)
         elif mode=='ours':
             langauge_feature_3d = np.stack((np.asarray(plydata.elements[0]["langauge_feature_3d_0"]),
                                             np.asarray(plydata.elements[0]["langauge_feature_3d_1"]),
                                             np.asarray(plydata.elements[0]["langauge_feature_3d_2"])),  axis=1)*2-1
-            self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(False))
-            self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False))
-            self._features_rest = nn.Parameter(torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous().requires_grad_(False))
-            self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(False))
-            self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(False))
-            self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(False))
-            self._language_feature_3d= nn.Parameter(torch.tensor(langauge_feature_3d, dtype=torch.float, device='cuda').requires_grad_(True))
+            self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda"), False)
+            self._features_dc = nn.Parameter(torch.tensor(features_dc, dtype=torch.float, device="cuda").transpose(1, 2).contiguous(), False)
+            self._features_rest = nn.Parameter(torch.tensor(features_extra, dtype=torch.float, device="cuda").transpose(1, 2).contiguous(), False)
+            self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda"), False)
+            self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda"), False)
+            self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda"), False)
+            self._language_feature_3d= nn.Parameter(torch.tensor(langauge_feature_3d, dtype=torch.float, device='cuda'), False)
 
 
         self.active_sh_degree = self.max_sh_degree

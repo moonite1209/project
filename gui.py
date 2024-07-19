@@ -203,16 +203,15 @@ class GaussianSplattingGUI:
             'scene': gaussian_model,
         }
 
-        self.cluster_point_colors = None
-        self.label_to_color = np.random.rand(1000, 3)
         self.seg_score = None
 
-        self.proj_mat = None
+        self.color_mapper = None
 
         self.load_model = False
         print("loading model file...")
         self.engine['scene'].load_ply(self.opt.SCENE_PCD_PATH, mode = 'ours')
-        # self.do_pca()   # calculate self.proj_mat
+        self.engine['scene'].get_language_feature_3d[self.engine['scene'].get_language_feature_3d.isnan()] = 0 #TODO
+        self.do_pca()   # calculate self.color_mapper
         self.load_model = True
 
         print("loading model file done.")
@@ -231,23 +230,10 @@ class GaussianSplattingGUI:
 
         # --- for interactive segmentation --- #
         self.img_mode = 0
-        self.clickmode_button = False
-        self.clickmode_multi_button = False     # choose multiple object 
-        self.new_click = False
-        self.prompt_num = 0
-        self.new_click_xy = []
-        self.clear_edit = False                 # clear all the click prompts
         self.roll_back = False
-        self.preview = False    # binary segmentation mode
-        self.segment3d_flag = False
         self.reload_flag = False        # reload the whole scene / point cloud
-        self.object_seg_id = 0          # to store the segmented object with increasing index order (path at: ./)
-        self.cluster_in_3D_flag = False
 
-        self.render_mode_rgb = False
-        self.render_mode_similarity = False
-        self.render_mode_pca = False
-        self.render_mode_cluster = False
+        self.render_mode = 'rgb'
 
         self.save_flag = False
     def __del__(self):
@@ -287,6 +273,9 @@ class GaussianSplattingGUI:
 
         return np.stack((r, g, b), axis=-1)
 
+    def query(self):
+        pass
+
     def register_dpg(self):
         
         ### register texture
@@ -303,98 +292,28 @@ class GaussianSplattingGUI:
             # self.img_mode = (self.img_mode + 1) % 4
             
         # --- interactive mode switch --- #
-        def clickmode_callback(sender):
-            self.clickmode_button = 1 - self.clickmode_button
-        def clickmode_multi_callback(sender):
-            self.clickmode_multi_button = dpg.get_value(sender)
-            print("clickmode_multi_button = ", self.clickmode_multi_button)
-        def preview_callback(sender):
-            self.preview = dpg.get_value(sender)
-            # print("binary_threshold_button = ", self.binary_threshold_button)
-        def clear_edit():
-            self.clear_edit = True
-        def roll_back():
-            self.roll_back = True
-        def callback_segment3d():
-            self.segment3d_flag = True
-        def callback_save():
-            self.save_flag = True
-        def callback_reload():
-            self.reload_flag = True
-        def callback_cluster():
-            self.cluster_in_3D_flag =True
-        def callback_reshuffle_color():
-            self.label_to_color = np.random.rand(1000, 3)
-            try:
-                self.cluster_point_colors = self.label_to_color[self.seg_score.argmax(dim = -1).cpu().numpy()]
-                self.cluster_point_colors[self.seg_score.max(dim = -1)[0].detach().cpu().numpy() < 0.5] = (0,0,0)
-            except:
-                pass
-
-        def render_mode_rgb_callback(sender):
-            self.render_mode_rgb = not self.render_mode_rgb
-        def render_mode_similarity_callback(sender):
-            self.render_mode_similarity = not self.render_mode_similarity
-        def render_mode_pca_callback(sender):
-            self.render_mode_pca = not self.render_mode_pca
-        def render_mode_cluster_callback(sender):
-            self.render_mode_cluster = not self.render_mode_cluster
         # control window
         with dpg.window(label="Control", tag="_control_window", width=300, height=550, pos=[self.window_width+10, 0]):
 
-            dpg.add_text("Mouse position: click anywhere to start. ", tag="pos_item")
-            dpg.add_slider_float(label="Scale", default_value=0.5,
-                                 min_value=0.0, max_value=1.0, tag="_Scale")
-            dpg.add_slider_float(label="ScoreThres", default_value=0.0,
-                                 min_value=0.0, max_value=1.0, tag="_ScoreThres")
             # dpg.add_button(label="render_option", tag="_button_depth",
                             # callback=callback_depth)
             dpg.add_text("\nRender option: ", tag="render")
-            dpg.add_checkbox(label="RGB", callback=render_mode_rgb_callback, user_data="Some Data")
-            dpg.add_checkbox(label="PCA", callback=render_mode_pca_callback, user_data="Some Data")
-            dpg.add_checkbox(label="SIMILARITY", callback=render_mode_similarity_callback, user_data="Some Data")
-            dpg.add_checkbox(label="3D CLUSTER", callback=render_mode_cluster_callback, user_data="Some Data")
+            dpg.add_checkbox(label="RGB", callback=lambda: setattr(self,'render_mode', 'rgb'), user_data="Some Data")
+            dpg.add_checkbox(label="Semantic", callback=lambda: setattr(self,'render_mode', 'semantic'), user_data="Some Data")
             
-
-            dpg.add_text("\nSegment option: ", tag="seg")
-            dpg.add_checkbox(label="clickmode", callback=clickmode_callback, user_data="Some Data")
-            dpg.add_checkbox(label="multi-clickmode", callback=clickmode_multi_callback, user_data="Some Data")
-            dpg.add_checkbox(label="preview_segmentation_in_2d", callback=preview_callback, user_data="Some Data")
+            dpg.add_text("\nEdit option: ", tag="edit")
+            dpg.add_input_text(label="query", tag="_query")
+            dpg.add_slider_float(label="similarity", default_value=0.8,
+                                 min_value=0.0, max_value=1.0, tag="_similarity")
             
             dpg.add_text("\n")
-            dpg.add_button(label="segment3d", callback=callback_segment3d, user_data="Some Data")
-            dpg.add_button(label="roll_back", callback=roll_back, user_data="Some Data")
-            dpg.add_button(label="clear", callback=clear_edit, user_data="Some Data")
-            dpg.add_button(label="save as", callback=callback_save, user_data="Some Data")
-            dpg.add_input_text(label="", default_value="precomputed_mask", tag="save_name")
-            dpg.add_text("\n")
-
-            dpg.add_button(label="cluster3d", callback=callback_cluster, user_data="Some Data")
-            dpg.add_button(label="reshuffle_cluster_color", callback=callback_reshuffle_color, user_data="Some Data")
-            dpg.add_button(label="reload_data", callback=callback_reload, user_data="Some Data")
-
-            def callback(sender, app_data, user_data):
-                self.load_model = False
-                file_data = app_data["selections"]
-                file_names = []
-                for key in file_data.keys():
-                    file_names.append(key)
-
-                self.opt.ply_file = file_data[file_names[0]]
-
-                # if not self.load_model:
-                print("loading model file...")
-                self.engine.load_ply(self.opt.ply_file)
-                self.do_pca()   # calculate new self.proj_mat after loading new .ply file
-                print("loading model file done.")
-                self.load_model = True
+            dpg.add_button(label="query", callback=self.query, user_data="Some Data")
 
         if self.debug:
             with dpg.collapsing_header(label="Debug"):
                 dpg.add_separator()
                 dpg.add_text("Camera Pose:")
                 dpg.add_text(str(self.camera.pose), tag="_log_pose")
-
 
         def callback_camera_wheel_scale(sender, app_data):
             if not dpg.is_item_focused("_primary_window"):
@@ -405,15 +324,6 @@ class GaussianSplattingGUI:
             if self.debug:
                 dpg.set_value("_log_pose", str(self.camera.pose))
         
-
-        def toggle_moving_left():
-            self.moving = not self.moving
-
-
-        def toggle_moving_middle():
-            self.moving_middle = not self.moving_middle
-
-
         def move_handler(sender, pos, user):
             if self.moving and dpg.is_item_focused("_primary_window"):
                 dx = self.mouse_pos[0] - pos[0]
@@ -428,31 +338,17 @@ class GaussianSplattingGUI:
                 if dx != 0.0 or dy != 0.0:
                     self.camera.pan(-dx*20, dy*20)
                     self.update_camera = True
-            
             self.mouse_pos = pos
-
-
-        def change_pos(sender, app_data):
-            # if not dpg.is_item_focused("_primary_window"):
-            #     return
-            xy = dpg.get_mouse_pos(local=False)
-            dpg.set_value("pos_item", f"Mouse position = ({xy[0]}, {xy[1]})")
-            if self.clickmode_button and app_data == 1:     # in the click mode and right click
-                print(xy)
-                self.new_click_xy = np.array(xy)
-                self.new_click = True
 
 
         with dpg.handler_registry():
             dpg.add_mouse_wheel_handler(callback=callback_camera_wheel_scale)
             
-            dpg.add_mouse_click_handler(dpg.mvMouseButton_Left, callback=lambda:toggle_moving_left())
-            dpg.add_mouse_release_handler(dpg.mvMouseButton_Left, callback=lambda:toggle_moving_left())
-            dpg.add_mouse_click_handler(dpg.mvMouseButton_Middle, callback=lambda:toggle_moving_middle())
-            dpg.add_mouse_release_handler(dpg.mvMouseButton_Middle, callback=lambda:toggle_moving_middle())
+            dpg.add_mouse_click_handler(dpg.mvMouseButton_Left, callback=lambda:setattr(self, 'moving', not self.moving))
+            dpg.add_mouse_release_handler(dpg.mvMouseButton_Left, callback=lambda:setattr(self, 'moving', not self.moving))
+            dpg.add_mouse_click_handler(dpg.mvMouseButton_Middle, callback=lambda:setattr(self, 'moving_middle', not self.moving_middle))
+            dpg.add_mouse_release_handler(dpg.mvMouseButton_Middle, callback=lambda:setattr(self, 'moving_middle', not self.moving_middle))
             dpg.add_mouse_move_handler(callback=lambda s, a, u:move_handler(s, a, u))
-            
-            dpg.add_mouse_click_handler(callback=change_pos)
             
         dpg.create_viewport(title="Gaussian-Splatting-Viewer", width=self.window_width+320, height=self.window_height, resizable=False)
 
@@ -504,8 +400,8 @@ class GaussianSplattingGUI:
             FoVx=fovx,
             FoVy=fovy,
             image=torch.zeros([3, self.height, self.width]),
-            segment=torch.zeros([3, self.height, self.width]),
-            semantic=torch.zeros([3, self.height, self.width]),
+            segment=None,
+            semantic=None,
             gt_alpha_mask=None,
             image_name=None,
             uid=0,
@@ -543,19 +439,9 @@ class GaussianSplattingGUI:
 
 
     def pca(self, X, n_components=3):
-        X[X.isnan()]=0
-        n = X.shape[0] # (200000, 3)
-        mean = torch.mean(X, dim=0)
-        X = X - mean
-        covariance_matrix = (1 / n) * torch.matmul(X.T, X).float()  # An old torch bug: matmul float32->float16, 
-        covariance_matrix[covariance_matrix.isnan()]=0
-        eigenvalues, eigenvectors = torch.linalg.eig(covariance_matrix)
-        eigenvalues = torch.norm(eigenvalues, dim=1)
-        idx = torch.argsort(-eigenvalues)
-        eigenvectors = eigenvectors[:, idx]
-        proj_mat = eigenvectors[:, 0:n_components]
-        
-        return proj_mat
+        pca=PCA(n_components=n_components)
+        pca.fit(X.cpu())
+        return pca
     
 
     def do_pca(self):
@@ -565,159 +451,51 @@ class GaussianSplattingGUI:
         randint = torch.randint(0, N, [200_000])
         sems /= (torch.norm(sems, dim=1, keepdim=True) + 1e-6)
         sem_chosen = sems[randint, :]
-        self.proj_mat = self.pca(sem_chosen, n_components=3)
-        print("project mat initialized !")
+        self.color_mapper = self.pca(sem_chosen, n_components=3)
+        print("color mapper mat initialized !")
 
 
     @torch.no_grad()
     def fetch_data(self, view_camera):
         
         scene_outputs = render(view_camera, self.engine['scene'], self.opt, self.bg_color, mode='ours')
-        # feature_outputs = render_contrastive_feature(view_camera, self.engine['feature'], self.opt, self.bg_feature)
-        feature_outputs = scene_outputs['language_feature_3d']
-        if self.cluster_in_3D_flag:
-            self.cluster_in_3D_flag = False
-            print("Clustering in 3D...")
-            self.cluster_in_3D()
-            print("Clustering finished.")
-        self.rendered_cluster = None if self.cluster_point_colors is None else render(view_camera, self.engine['scene'], self.opt, self.bg_color, mode='3dgs', override_color=torch.from_numpy(self.cluster_point_colors).cuda().float())["render"].permute(1, 2, 0)
         # --- RGB image --- #
-        img = scene_outputs["render"].permute(1, 2, 0)  #
+        img = scene_outputs["render"].permute(1, 2, 0).cpu()
 
         rgb_score = img.clone()
-        depth_score = rgb_score.cpu().numpy().reshape(-1)
 
         # --- semantic image --- #
-        sems = feature_outputs.permute(1, 2, 0)
+        sems = scene_outputs['language_feature_3d'].permute(1, 2, 0).cpu()
         H, W, C = sems.shape
         sems /= (torch.norm(sems, dim=-1, keepdim=True) + 1e-6)
-        pca = PCA(n_components=3)
-        # sem_transed = sems @ self.proj_mat
-        sem_transed = sems # torch.from_numpy(pca.fit_transform(sems.cpu()))
+        sem_transed = sems #TODO torch.from_numpy(self.color_mapper.transform(sems.reshape(-1, sems.shape[-1]))).reshape(sems.shape[0], sems.shape[1], -1)
         sem_transed_rgb = torch.clip(sem_transed*0.5+0.5, 0, 1)
 
-        if self.clear_edit:
-            self.new_click_xy = []
-            self.clear_edit = False
-            self.prompt_num = 0
-            try:
-                self.engine['scene'].clear_segment()
-                self.engine['feature'].clear_segment()
-            except:
-                pass
-
-        if self.roll_back:
-            self.new_click_xy = []
-            self.roll_back = False
-            self.prompt_num = 0
-            # try:
-            self.engine['scene'].roll_back()
-            self.engine['feature'].roll_back()
-            # except:
-                # pass
-        
         if self.reload_flag:
             self.reload_flag = False
             print("loading model file...")
             self.engine['scene'].load_ply(self.opt.SCENE_PCD_PATH)
-            self.engine['feature'].load_ply(self.opt.FEATURE_PCD_PATH)
-            self.engine['scale_gate'].load_state_dict(torch.load(self.opt.SCALE_GATE_PATH))
-            self.do_pca()   # calculate self.proj_mat
+            self.do_pca()   # calculate self.col
             self.load_model = True
-
-        score_map = None
-        if len(self.new_click_xy) > 0:
-
-            featmap = scale_gated_feat.reshape(H, W, -1)
-            
-            if self.new_click:
-                xy = self.new_click_xy
-                new_feat = featmap[int(xy[1])%H, int(xy[0])%W, :].reshape(featmap.shape[-1], -1)
-                if (self.prompt_num == 0) or (self.clickmode_multi_button == False):
-                    self.chosen_feature = new_feat
-                else:
-                    self.chosen_feature = torch.cat([self.chosen_feature, new_feat], dim=-1)    # extend to get more prompt features
-                self.prompt_num += 1
-                self.new_click = False
-            
-            score_map = featmap @ self.chosen_feature
-            # print(score_map.shape, score_map.min(), score_map.max(), "score_map_shape")
-
-            score_map = (score_map + 1.0) / 2
-            score_binary = score_map > dpg.get_value('_ScoreThres')
-            
-            score_map[~score_binary] = 0.0
-            score_map = torch.max(score_map, dim=-1).values
-            score_norm = (score_map - dpg.get_value('_ScoreThres')) / (1 - dpg.get_value('_ScoreThres'))
-
-            if self.preview:
-                rgb_score = img * torch.max(score_binary, dim=-1, keepdim=True).values    # option: binary
-            else:
-                rgb_score = img
-            depth_score = 1 - torch.clip(score_norm, 0, 1)
-            depth_score = depth2img(depth_score.cpu().numpy()).astype(np.float32)/255.0
-
-            if self.segment3d_flag:
-                """ gaussian point cloud core params
-                self.engine._xyz            # (N, 3)
-                self.engine._features_dc    # (N, 1, 3)
-                self.engine._features_rest  # (N, 15, 3)
-                self.engine._opacity        # (N, 1)
-                self.engine._scaling        # (N, 3)
-                self.engine._rotation       # (N, 4)
-                self.engine._objects_dc     # (N, 1, 16)
-                """
-                self.segment3d_flag = False
-                feat_pts = self.engine['feature'].get_point_features.squeeze()
-                scale_gated_feat_pts = feat_pts * self.gates.unsqueeze(0)
-                scale_gated_feat_pts = torch.nn.functional.normalize(scale_gated_feat_pts, dim = -1, p = 2)
-
-                score_pts = scale_gated_feat_pts @ self.chosen_feature
-                score_pts = (score_pts + 1.0) / 2
-                self.score_pts_binary = (score_pts > dpg.get_value('_ScoreThres')).sum(1) > 0
-
-                # save_path = "./debug_robot_{:0>3d}.ply".format(self.object_seg_id)
-                # try:
-                #     self.engine['scene'].roll_back()
-                #     self.engine['feature'].roll_back()
-                # except:
-                #     pass
-                self.engine['scene'].segment(self.score_pts_binary)
-                self.engine['feature'].segment(self.score_pts_binary)
 
         if self.save_flag:
             print("Saving ...")
             self.save_flag = False
             try:
-                os.makedirs("./segmentation_res", exist_ok=True)
+                os.makedirs("./edit_res", exist_ok=True)
                 save_mask = self.engine['scene']._mask == self.engine['scene'].segment_times + 1
-                torch.save(save_mask, f"./segmentation_res/{dpg.get_value('save_name')}.pt")
+                torch.save(save_mask, f"./edit_res/{dpg.get_value('save_name')}.pt")
             except:
                 with dpg.window(label="Tips"):
-                    dpg.add_text('You should segment the 3D object before save it (click segment3d first).')
+                    dpg.add_text('Error')
 
         self.render_buffer = None
         render_num = 0
-        if self.render_mode_rgb or (not self.render_mode_pca and not self.render_mode_cluster and not self.render_mode_similarity):
+        if self.render_mode == 'rgb':
             self.render_buffer = rgb_score.cpu().numpy().reshape(-1)
             render_num += 1
-        
-        if self.render_mode_pca:
-            self.render_buffer = sem_transed_rgb.cpu().numpy().reshape(-1) if self.render_buffer is None else self.render_buffer + sem_transed_rgb.cpu().numpy().reshape(-1)
-            render_num += 1
-        if self.render_mode_cluster:
-            if self.rendered_cluster is None:
-                self.render_buffer = rgb_score.cpu().numpy().reshape(-1) if self.render_buffer is None else self.render_buffer + rgb_score.cpu().numpy().reshape(-1)
-            else:
-                self.render_buffer = self.rendered_cluster.cpu().numpy().reshape(-1) if self.render_buffer is None else self.render_buffer + self.rendered_cluster.cpu().numpy().reshape(-1)
-            
-            render_num += 1
-        if self.render_mode_similarity:
-            if score_map is not None:
-                self.render_buffer = self.grayscale_to_colormap(score_map.squeeze().cpu().numpy()).reshape(-1).astype(np.float32) if self.render_buffer is None else self.render_buffer + self.grayscale_to_colormap(score_map.squeeze().cpu().numpy()).reshape(-1).astype(np.float32)
-            else:
-                self.render_buffer = rgb_score.cpu().numpy().reshape(-1) if self.render_buffer is None else self.render_buffer + rgb_score.cpu().numpy().reshape(-1)
-
+        if self.render_mode == 'semantic':
+            self.render_buffer = sem_transed_rgb.cpu().numpy().reshape(-1)
             render_num += 1
         self.render_buffer /= render_num
 
