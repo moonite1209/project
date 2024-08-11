@@ -1,5 +1,7 @@
 # Borrowed from OmniSeg3D-GS (https://github.com/OceanYing/OmniSeg3D-GS)
 import torch
+from autoencoder.model import Autoencoder
+from eval.openclip_encoder import OpenCLIPNetwork
 from scene import Scene
 import os
 from tqdm import tqdm
@@ -57,6 +59,9 @@ class CONFIG:
 
     FEATURE_DIM = 32
     MODEL_PATH = './output/waldo_kitchen_3d_3' # 30000
+    ae_ckpt_path = './ckpt/waldo_kitchen/best_ckpt.pth'
+    encoder_dims = [256, 128, 64, 32, 3]
+    decoder_dims = [16, 32, 64, 128, 256, 256, 512]
 
     FEATURE_GAUSSIAN_ITERATION = 10000
     SCENE_GAUSSIAN_ITERATION = 30000
@@ -276,6 +281,31 @@ class GaussianSplattingGUI:
     def query(self):
         pass
 
+    def do_remove(self, gaussians: GaussianModel, query: str, threshold: float):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        clip = OpenCLIPNetwork(device)
+        checkpoint = torch.load(self.opt.ae_ckpt_path, map_location=device)
+        codec = Autoencoder(self.opt.encoder_dims, self.opt.decoder_dims).to(device)
+        codec.load_state_dict(checkpoint)
+        codec.eval()
+
+        lf3=gaussians.get_language_feature_3d
+        print(lf3.shape)
+        lf=codec.decode(lf3)
+        print(lf.shape)
+        clip.set_positives([query])
+        relevancy = clip.get_relevancy_pc(lf)[0]
+        gaussians.remove_points(relevancy > threshold)
+        print('remove done')
+        print((relevancy > threshold).sum(), gaussians.get_xyz.shape)
+
+    def remove(self):
+        print('removing')
+        query = dpg.get_value("_query")
+        threshold = dpg.get_value("_threshold")
+        gaussians = self.engine["scene"]
+        self.do_remove(gaussians, query, threshold)
+
     def register_dpg(self):
         
         ### register texture
@@ -303,11 +333,12 @@ class GaussianSplattingGUI:
             
             dpg.add_text("\nEdit option: ", tag="edit")
             dpg.add_input_text(label="query", tag="_query")
-            dpg.add_slider_float(label="similarity", default_value=0.8,
-                                 min_value=0.0, max_value=1.0, tag="_similarity")
+            dpg.add_slider_float(label="threshold", default_value=0.8,
+                                 min_value=0.0, max_value=1.0, tag="_threshold")
             
             dpg.add_text("\n")
             dpg.add_button(label="query", callback=self.query, user_data="Some Data")
+            dpg.add_button(label="remove", callback=self.remove, user_data="Some Data")
 
         if self.debug:
             with dpg.collapsing_header(label="Debug"):
