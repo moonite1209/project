@@ -281,30 +281,27 @@ class GaussianSplattingGUI:
     def query(self):
         pass
 
-    def do_remove(self, gaussians: GaussianModel, query: str, threshold: float):
+    def do_remove(cfg: CONFIG, gaussians: GaussianModel, query: str, threshold: float):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         clip = OpenCLIPNetwork(device)
-        checkpoint = torch.load(self.opt.ae_ckpt_path, map_location=device)
-        codec = Autoencoder(self.opt.encoder_dims, self.opt.decoder_dims).to(device)
+        checkpoint = torch.load(cfg.ae_ckpt_path, map_location=device)
+        codec = Autoencoder(cfg.encoder_dims, cfg.decoder_dims).to(device)
         codec.load_state_dict(checkpoint)
         codec.eval()
 
         lf3=gaussians.get_language_feature_3d
-        print(lf3.shape)
         lf=codec.decode(lf3)
-        print(lf.shape)
         clip.set_positives([query])
         relevancy = clip.get_relevancy_pc(lf)[0]
         gaussians.remove_points(relevancy > threshold)
-        print('remove done')
-        print((relevancy > threshold).sum(), gaussians.get_xyz.shape)
+        print(f'remove {(relevancy > threshold).sum()} points')
 
     def remove(self):
         print('removing')
         query = dpg.get_value("_query")
         threshold = dpg.get_value("_threshold")
         gaussians = self.engine["scene"]
-        self.do_remove(gaussians, query, threshold)
+        GaussianSplattingGUI.do_remove(self.opt, gaussians, query, threshold)
 
     def register_dpg(self):
         
