@@ -281,6 +281,7 @@ class GaussianSplattingGUI:
     def query(self):
         pass
 
+    @staticmethod
     def do_remove(cfg: CONFIG, gaussians: GaussianModel, query: str, threshold: float):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         clip = OpenCLIPNetwork(device)
@@ -330,7 +331,7 @@ class GaussianSplattingGUI:
             
             dpg.add_text("\nEdit option: ", tag="edit")
             dpg.add_input_text(label="query", tag="_query")
-            dpg.add_slider_float(label="threshold", default_value=0.8,
+            dpg.add_slider_float(label="threshold", default_value=0.6,
                                  min_value=0.0, max_value=1.0, tag="_threshold")
             
             dpg.add_text("\n")
