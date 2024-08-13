@@ -212,14 +212,11 @@ class GaussianSplattingGUI:
 
         self.color_mapper = None
 
-        self.load_model = False
-        print("loading model file...")
-        self.engine['scene'].load_ply(self.opt.SCENE_PCD_PATH, mode = 'ours')
-        self.engine['scene'].get_language_feature_3d[self.engine['scene'].get_language_feature_3d.isnan()] = 0 #TODO
-        self.do_pca()   # calculate self.color_mapper
-        self.load_model = True
+        self.device = torch.device('cuda')
 
-        print("loading model file done.")
+        self.load_clip()
+        self.load_codec()
+        self.load_model()
 
         self.mode = "image"  # choose from ['image', 'depth']
 
@@ -244,65 +241,52 @@ class GaussianSplattingGUI:
     def __del__(self):
         dpg.destroy_context()
 
-    def prepare_buffer(self, outputs):
-        if self.model == "images":
-            return outputs["render"]
-        else:
-            return np.expand_dims(outputs["depth"], -1).repeat(3, -1)
-    
-    def grayscale_to_colormap(self, gray):
-        """Convert a grayscale value to Jet colormap RGB values."""
-        # Ensure the grayscale values are in the range [0, 1]
-        # gray = np.clip(gray, 0, 1)
+    def load_clip(self):
+        self.clip = OpenCLIPNetwork(self.device)
 
-        # Jet colormap ranges (these are normalized to [0, 1])
-        jet_colormap = np.array([
-            [0, 0, 0.5],
-            [0, 0, 1],
-            [0, 0.5, 1],
-            [0, 1, 1],
-            [0.5, 1, 0.5],
-            [1, 1, 0],
-            [1, 0.5, 0],
-            [1, 0, 0],
-            [0.5, 0, 0]
-        ])
+    def load_codec(self):
+        self.codec = Autoencoder(self.opt.encoder_dims, self.opt.decoder_dims).to(self.device)
+        self.codec.load_state_dict(torch.load(self.opt.ae_ckpt_path, map_location=self.device))
+        self.codec.eval()
 
-        # Corresponding positions for the colors in the colormap
-        positions = np.linspace(0, 1, jet_colormap.shape[0])
+    def load_model(self):
+        self.loaded = False
+        print("loading model file...")
+        self.engine['scene'].load_ply(self.opt.SCENE_PCD_PATH, mode = 'ours')
+        self.engine['scene'].get_language_feature_3d[self.engine['scene'].get_language_feature_3d.isnan()] = 0 #TODO
+        self.raw_language_feature = self.codec.decode(self.engine['scene'].get_language_feature_3d)
+        self.do_pca()   # calculate self.color_mapper
+        self.loaded = True
+        print("loading model file done.")
 
-        # Interpolate the RGB values based on the grayscale value
-        r = np.interp(gray, positions, jet_colormap[:, 0])
-        g = np.interp(gray, positions, jet_colormap[:, 1])
-        b = np.interp(gray, positions, jet_colormap[:, 2])
+    def query(self, sender, app_data, user_data):
+        print('querying')
+        query = dpg.get_value("_query")
+        threshold = dpg.get_value("_threshold")
+        gaussians = self.engine["scene"]
 
-        return np.stack((r, g, b), axis=-1)
+        self.clip.set_positives([query])
+        relevancy = self.clip.get_relevancy_pc(self.raw_language_feature)[0]
+        mask = relevancy > threshold
+        gaussians.remove_points(~mask)
+        self.raw_language_feature = self.raw_language_feature[mask]
+        print(f'query {mask.sum()} points')
 
-    def query(self):
-        pass
-
-    @staticmethod
-    def do_remove(cfg: CONFIG, gaussians: GaussianModel, query: str, threshold: float):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        clip = OpenCLIPNetwork(device)
-        checkpoint = torch.load(cfg.ae_ckpt_path, map_location=device)
-        codec = Autoencoder(cfg.encoder_dims, cfg.decoder_dims).to(device)
-        codec.load_state_dict(checkpoint)
-        codec.eval()
-
-        lf3=gaussians.get_language_feature_3d
-        lf=codec.decode(lf3)
-        clip.set_positives([query])
-        relevancy = clip.get_relevancy_pc(lf)[0]
-        gaussians.remove_points(relevancy > threshold)
-        print(f'remove {(relevancy > threshold).sum()} points')
-
-    def remove(self):
+    def remove(self, sender, app_data, user_data):
         print('removing')
         query = dpg.get_value("_query")
         threshold = dpg.get_value("_threshold")
         gaussians = self.engine["scene"]
-        GaussianSplattingGUI.do_remove(self.opt, gaussians, query, threshold)
+
+        self.clip.set_positives([query])
+        relevancy = self.clip.get_relevancy_pc(self.raw_language_feature)[0]
+        mask = relevancy > threshold
+        gaussians.remove_points(mask)
+        self.raw_language_feature = self.raw_language_feature[~mask]
+        print(f'remove {mask.sum()} points')
+
+    def reload(self, sender, app_data, user_data):
+        self.load_model()
 
     def register_dpg(self):
         
@@ -326,8 +310,7 @@ class GaussianSplattingGUI:
             # dpg.add_button(label="render_option", tag="_button_depth",
                             # callback=callback_depth)
             dpg.add_text("\nRender option: ", tag="render")
-            dpg.add_checkbox(label="RGB", callback=lambda: setattr(self,'render_mode', 'rgb'), user_data="Some Data")
-            dpg.add_checkbox(label="Semantic", callback=lambda: setattr(self,'render_mode', 'semantic'), user_data="Some Data")
+            dpg.add_radio_button(('RGB', 'Semantic'), callback=lambda sender, app_data: setattr(self,'render_mode', app_data.lower()), default_value='RGB')
             
             dpg.add_text("\nEdit option: ", tag="edit")
             dpg.add_input_text(label="query", tag="_query")
@@ -335,8 +318,9 @@ class GaussianSplattingGUI:
                                  min_value=0.0, max_value=1.0, tag="_threshold")
             
             dpg.add_text("\n")
-            dpg.add_button(label="query", callback=self.query, user_data="Some Data")
-            dpg.add_button(label="remove", callback=self.remove, user_data="Some Data")
+            dpg.add_button(label="query", callback=self.query)
+            dpg.add_button(label="remove", callback=self.remove)
+            dpg.add_button(label="reload", callback=self.reload)
 
         if self.debug:
             with dpg.collapsing_header(label="Debug"):
@@ -399,7 +383,7 @@ class GaussianSplattingGUI:
         while dpg.is_dearpygui_running():
             # update texture every frame
             # TODO : fetch rgb and depth
-            if self.load_model:
+            if self.loaded:
                 cam = self.construct_camera()
                 self.fetch_data(cam)
             dpg.render_dearpygui_frame()
@@ -437,35 +421,6 @@ class GaussianSplattingGUI:
         )
         cam.feature_height, cam.feature_width = self.height, self.width
         return cam
-    
-    def cluster_in_3D(self):
-        # try:
-        #     self.engine['scene'].roll_back()
-        #     self.engine['feature'].roll_back()
-        # except:
-        #     pass
-        point_features = self.engine['feature'].get_point_features
-
-        scale_conditioned_point_features = torch.nn.functional.normalize(point_features, dim = -1, p = 2) * self.gates.unsqueeze(0)
-
-        normed_point_features = torch.nn.functional.normalize(scale_conditioned_point_features, dim = -1, p = 2)
-
-        sampled_point_features = scale_conditioned_point_features[torch.rand(scale_conditioned_point_features.shape[0]) > 0.98]
-
-        normed_sampled_point_features = sampled_point_features / torch.norm(sampled_point_features, dim = -1, keepdim = True)
-
-        clusterer = HDBSCAN(min_cluster_size=10, cluster_selection_epsilon=0.01, allow_single_cluster = False)
-
-        cluster_labels = clusterer.fit_predict(normed_sampled_point_features.detach().cpu().numpy())
-
-        cluster_centers = torch.zeros(len(np.unique(cluster_labels)), normed_sampled_point_features.shape[-1])
-        for i in range(0, len(np.unique(cluster_labels))):
-            cluster_centers[i] = torch.nn.functional.normalize(normed_sampled_point_features[cluster_labels == i-1].mean(dim = 0), dim = -1)
-
-        self.seg_score = torch.einsum('nc,bc->bn', cluster_centers.cpu(), normed_point_features.cpu())
-        self.cluster_point_colors = self.label_to_color[self.seg_score.argmax(dim = -1).cpu().numpy()]
-        # self.cluster_point_colors[self.seg_score.max(dim = -1)[0].detach().cpu().numpy() < 0.5] = (0,0,0)
-
 
     def pca(self, X, n_components=3):
         pca=PCA(n_components=n_components)
@@ -499,24 +454,6 @@ class GaussianSplattingGUI:
         sems /= (torch.norm(sems, dim=-1, keepdim=True) + 1e-6)
         sem_transed = sems #TODO torch.from_numpy(self.color_mapper.transform(sems.reshape(-1, sems.shape[-1]))).reshape(sems.shape[0], sems.shape[1], -1)
         sem_transed_rgb = torch.clip(sem_transed*0.5+0.5, 0, 1)
-
-        if self.reload_flag:
-            self.reload_flag = False
-            print("loading model file...")
-            self.engine['scene'].load_ply(self.opt.SCENE_PCD_PATH)
-            self.do_pca()   # calculate self.col
-            self.load_model = True
-
-        if self.save_flag:
-            print("Saving ...")
-            self.save_flag = False
-            try:
-                os.makedirs("./edit_res", exist_ok=True)
-                save_mask = self.engine['scene']._mask == self.engine['scene'].segment_times + 1
-                torch.save(save_mask, f"./edit_res/{dpg.get_value('save_name')}.pt")
-            except:
-                with dpg.window(label="Tips"):
-                    dpg.add_text('Error')
 
         self.render_buffer = None
         render_num = 0
