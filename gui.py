@@ -58,7 +58,7 @@ class CONFIG:
     white_background = False
 
     FEATURE_DIM = 32
-    MODEL_PATH = './output/waldo_kitchen_3d_3' # 30000
+    MODEL_PATH = './output/lerf_ovs/waldo_kitchen_3d_3' # 30000
     ae_ckpt_path = './ckpt/waldo_kitchen/best_ckpt.pth'
     encoder_dims = [256, 128, 64, 32, 3]
     decoder_dims = [16, 32, 64, 128, 256, 256, 512]
@@ -471,7 +471,7 @@ class GaussianSplattingGUI:
 if __name__ == "__main__":
     parser = ArgumentParser(description="GUI option")
 
-    parser.add_argument('-m', '--model_path', type=str, default="./output/waldo_kitchen_3d_3")
+    # parser.add_argument('-m', '--model_path', type=str, default="./output/lerf_ovs/figurines_3d_3")
     parser.add_argument('-f', '--feature_iteration', type=int, default=10000)
     parser.add_argument('-s', '--scene_iteration', type=int, default=30000)
 
@@ -479,7 +479,7 @@ if __name__ == "__main__":
 
     opt = CONFIG()
 
-    opt.MODEL_PATH = args.model_path
+    # opt.MODEL_PATH = args.model_path
     opt.FEATURE_GAUSSIAN_ITERATION = args.feature_iteration
     opt.SCENE_GAUSSIAN_ITERATION = args.scene_iteration
 
