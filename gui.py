@@ -60,6 +60,7 @@ class CONFIG:
     FEATURE_DIM = 32
     MODEL_PATH = './output/lerf_ovs/waldo_kitchen_3d_3' # 30000
     ae_ckpt_path = './ckpt/waldo_kitchen/best_ckpt.pth'
+    save_path = './edit_output'
     encoder_dims = [256, 128, 64, 32, 3]
     decoder_dims = [16, 32, 64, 128, 256, 256, 512]
 
@@ -288,6 +289,9 @@ class GaussianSplattingGUI:
     def reload(self, sender, app_data, user_data):
         self.load_model()
 
+    def save(self, sender, app_data, user_data):
+        self.engine['scene'].save_ply(os.path.join(self.opt.save_path, 'point_cloud.ply'))
+
     def register_dpg(self):
         
         ### register texture
@@ -321,6 +325,7 @@ class GaussianSplattingGUI:
             dpg.add_button(label="query", callback=self.query)
             dpg.add_button(label="remove", callback=self.remove)
             dpg.add_button(label="reload", callback=self.reload)
+            dpg.add_button(label="save", callback=self.save)
 
         if self.debug:
             with dpg.collapsing_header(label="Debug"):

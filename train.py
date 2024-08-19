@@ -90,7 +90,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Render
         if (iteration - 1) == debug_from:
             pipe.debug = True
-        render_pkg = render(viewpoint_cam, gaussians, pipe, background, 'ours') #TODO 渲染
+        render_pkg = render(viewpoint_cam, gaussians, pipe, background, opt.mode) #TODO 渲染
         image, language_feature, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["language_feature_image"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
         language_feature_3d=render_pkg["language_feature_3d"]
         blending_language_feature_3d=render_pkg["blending_language_feature_3d"]

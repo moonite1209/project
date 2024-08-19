@@ -16,7 +16,7 @@ from project_rasterization import GaussianRasterizationSettings, GaussianRasteri
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, mode, scaling_modifier = 1.0, override_color = None):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, mode: str, scaling_modifier = 1.0, override_color = None):
     """
     Render the scene. 
     
