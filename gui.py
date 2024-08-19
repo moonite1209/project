@@ -58,8 +58,8 @@ class CONFIG:
     white_background = False
 
     FEATURE_DIM = 32
-    MODEL_PATH = './output/lerf_ovs/waldo_kitchen_3d_3' # 30000
-    ae_ckpt_path = './ckpt/waldo_kitchen/best_ckpt.pth'
+    MODEL_PATH = './output/lerf_ovs/figurines_3d_3' # 30000
+    ae_ckpt_path = './ckpt/figurines/best_ckpt.pth'
     save_path = './edit_output'
     encoder_dims = [256, 128, 64, 32, 3]
     decoder_dims = [16, 32, 64, 128, 256, 256, 512]
