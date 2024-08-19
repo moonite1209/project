@@ -33,7 +33,7 @@ def render_set(model_path, source_path, name, iteration, views, gaussians, pipel
     makedirs(gts_path, exist_ok=True)
 
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        output = render(view, gaussians, pipeline, background, 'ours', args.mode)
+        output = render(view, gaussians, pipeline, background, args.mode)
 
         if args.mode == '3dgs':
             rendering = output["render"]
