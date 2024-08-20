@@ -51,10 +51,10 @@ def render_set(model_path, source_path, name, iteration, views, gaussians, pipel
             gt, mask = view.get_language_feature(feature_level=args.feature_level)
 
         np.save(os.path.join(render_npy_path, '{0:05d}'.format(idx) + ".npy"),rendering.permute(1,2,0).cpu().numpy())
-        np.save(os.path.join(gts_npy_path, '{0:05d}'.format(idx) + ".npy"),gt.permute(1,2,0).cpu().numpy())
+        np.save(os.path.join(gts_npy_path, '{0:05d}'.format(idx) + ".npy"),(gt*mask).permute(1,2,0).cpu().numpy())
         # np.save(os.path.join(gts_npy_path, '{0:05d}'.format(idx) + ".npy"),(gt*mask).permute(1,2,0).cpu().numpy())
         torchvision.utils.save_image(rendering/2+0.5, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
-        torchvision.utils.save_image(gt/2+0.5, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+        torchvision.utils.save_image((gt/2+0.5)*mask, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
         # torchvision.utils.save_image(gt*mask, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
                
 def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, args):
