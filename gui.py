@@ -57,9 +57,9 @@ class CONFIG:
 
     white_background = False
 
-    dataset_name = 'figurines'
+    dataset_name = 'waldo_kitchen'
     FEATURE_DIM = 32
-    MODEL_PATH = f'./output/ablation/ours/{dataset_name}_3d_3' # 30000
+    MODEL_PATH = f'./output/ablation/temp/{dataset_name}_3d_3' # 30000
     ae_ckpt_path = f'./ckpt/{dataset_name}/best_ckpt.pth'
     save_path = './edit_output'
     encoder_dims = [256, 128, 64, 32, 3]

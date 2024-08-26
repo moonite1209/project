@@ -11,7 +11,7 @@ class Context:
 
     def set_current(self, current):
         self.current = current
-        self.cs = torch.from_numpy(np.load(self.segments[current])).long()
+        self.cs = torch.from_numpy(np.load(self.segments[current]))
         self.cf = torch.from_numpy(np.load(self.features[current]))
 
     def get_color_map(self, level=3):
@@ -27,11 +27,16 @@ class Context:
         print(self.value)
 
     def set_value(self, x, y):
-        self.cf[self.cs[3][y][x]] = self.value
+        self.cf[self.cs[3][y][x].long()] = self.value
+        dpg.set_value('_texture', self.get_color_map().numpy())
         print(self.value)
 
+    def save(self):
+        np.save(os.path.join('data/lerf_ovs/waldo_kitchen/temp', f'frame_{str(self.current).rjust(5,'0')}_s.npy'), self.cs)
+        np.save(os.path.join('data/lerf_ovs/waldo_kitchen/temp', f'frame_{str(self.current).rjust(5,'0')}_f.npy'), self.cf)
+
 def main():
-    mask_dir = 'data/lerf_ovs/waldo_kitchen/language_features_dim3'
+    mask_dir = 'data/lerf_ovs/waldo_kitchen/temp' #'data/lerf_ovs/waldo_kitchen/language_features_dim3'
     feature_level = 3
     width = 985
     height = 725
@@ -44,7 +49,7 @@ def main():
     features.sort()
 
     context = Context(current, segments, features)
-
+    
     dpg.create_context()
     ### register texture
     with dpg.texture_registry(show=False):
@@ -60,7 +65,7 @@ def main():
         context: Context = user_data[0]
         offset = user_data[1]
         context.set_current(context.current+offset)
-        cmap=context.get_color_map(3)
+        cmap=context.get_color_map()
         dpg.set_value('_texture', cmap.numpy())
         dpg.set_value('index', f'index: {context.current}')
     def get_callback(sender, app_data, context:Context):
@@ -72,7 +77,7 @@ def main():
         y=int(float(dpg.get_value('y')[3:]))
         value=context.set_value(x,y)
     def save_callback(sender, app_data, context:Context):
-        pass
+        context.save()
     with dpg.window(label="Control", tag="_control_window", width=300, height=550, pos=[width+30, 0]):
         dpg.add_text("\noption: ", tag="option")
         dpg.add_text("x: ", tag="x")
@@ -87,7 +92,7 @@ def main():
     def mouse_click_handler(sender, app_data, user_data):
         print(sender, app_data)
         pos = dpg.get_mouse_pos()
-        if pos[0]<=985 and pos[1]<=725:
+        if pos[0]<=985 and pos[0]>=0 and pos[1]<=725 and pos[1]>=0:
             dpg.set_value('x', f'x: {pos[0]}')
             dpg.set_value('y', f'y: {pos[1]}')
 
@@ -95,7 +100,7 @@ def main():
         dpg.add_mouse_click_handler(dpg.mvMouseButton_Left, callback=mouse_click_handler)
 
 
-    dpg.create_viewport(title="Gaussian-Splatting-Viewer", width=width+320, height=height, resizable=False)
+    dpg.create_viewport(title="Gaussian-Splatting-Viewer", width=width+350, height=height+50, resizable=False)
 
     ### global theme
     with dpg.theme() as theme_no_padding:
