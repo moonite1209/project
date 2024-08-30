@@ -56,7 +56,7 @@ def track() -> None:
         frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, ann_frame_idx, ann_obj_id, points, labels)
 
         fig, ax = plt.subplots()
-        
+
         # ax.imshow(Image.open(os.path.join(video_dir, frame_names[ann_frame_idx])))
         # show_points(points, labels, ax)
         # show_mask((masks[0] > 0.0).cpu().numpy(), ax, obj_id=object_ids[0])
@@ -79,7 +79,8 @@ def mask():
                                                                 stability_score_thresh=0.85,
                                                                 crop_n_layers=1,
                                                                 crop_n_points_downscale_factor=1,
-                                                                min_mask_region_area=100)
+                                                                min_mask_region_area=100
+                                                                )
     masks = mask_generator.generate(image)
     smap = np.zeros_like(image)
     for mask in masks:
