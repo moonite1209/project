@@ -1,4 +1,4 @@
-name: project
+name: demon
 channels:
   - pytorch
   - nvidia
@@ -9,7 +9,7 @@ dependencies:
   - plyfile
   - python
   - pip
-  - pytorch=2.3
+  - pytorch=2.4
   - pytorch-cuda=11.8
   - torchaudio
   - torchvision
