@@ -1,5 +1,6 @@
 import os
 import io
+from typing import List, Sequence
 import matplotlib.axes
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,7 +34,7 @@ def show_box(box, ax):
     w, h = box[2] - box[0], box[3] - box[1]
     ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))
 
-def track() -> None:
+def track(masks: Sequence[torch.Tensor]) -> None:
     video_dir = 'data/lerf/waldo_kitchen/input'
     # scan all the JPEG frame names in this directory
     frame_names = [
@@ -53,7 +54,9 @@ def track() -> None:
         state = predictor.init_state(video_dir)
 
         # add new prompts and instantly get the output on the same frame
-        frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, ann_frame_idx, ann_obj_id, points, labels)
+        # frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, ann_frame_idx, ann_obj_id, points, labels)
+        for id, mask in enumerate(masks):
+            frame_idx, object_ids, masks = predictor.add_new_mask(state, ann_frame_idx, id, mask)
 
         fig, ax = plt.subplots()
 
@@ -65,21 +68,22 @@ def track() -> None:
         # propagate the prompts to get masklets throughout the video
         for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
             print(frame_idx, object_ids, masks.shape)
-            show_mask((masks[0] > 0.0).cpu().numpy(), ax, obj_id=object_ids[0], random_color=True)
-            plt.show()
+            
+            # show_mask((masks[0] > 0.0).cpu().numpy(), ax, obj_id=object_ids[0], random_color=True)
+            # plt.show()
 
 def mask():
     img_path = 'data/lerf/waldo_kitchen/input/00000.jpg'
     image = Image.open(img_path)
     image = np.array(image.convert("RGB"))
     mask_generator = SAM2AutomaticMaskGenerator.from_pretrained("facebook/sam2-hiera-large", 
-                                                                points_per_side=32,
-                                                                pred_iou_thresh=0.7,
-                                                                box_nms_thresh=0.7,
-                                                                stability_score_thresh=0.85,
-                                                                crop_n_layers=1,
-                                                                crop_n_points_downscale_factor=1,
-                                                                min_mask_region_area=100
+                                                                # points_per_side=32,
+                                                                # pred_iou_thresh=0.7,
+                                                                # box_nms_thresh=0.7,
+                                                                # stability_score_thresh=0.85,
+                                                                # crop_n_layers=1,
+                                                                # crop_n_points_downscale_factor=1,
+                                                                # min_mask_region_area=100
                                                                 )
     masks = mask_generator.generate(image)
     smap = np.zeros_like(image)
@@ -87,8 +91,9 @@ def mask():
         mask=mask['segmentation']
         color = np.random.randint((128,128,128), dtype=np.uint8)
         smap[mask]=color
-    plt.imshow(smap)
-    plt.show()
+    # plt.imshow(smap)
+    # plt.show()
+    track([m['segmentation'] for m in masks])
 
 def main() -> None:
     mask()
