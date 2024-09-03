@@ -90,8 +90,8 @@ def mask():
                                                                 # pred_iou_thresh=0.7,
                                                                 # box_nms_thresh=0.7,
                                                                 # stability_score_thresh=0.85,
-                                                                # crop_n_layers=1,
-                                                                # crop_n_points_downscale_factor=1,
+                                                                crop_n_layers=1,
+                                                                crop_n_points_downscale_factor=1,
                                                                 min_mask_region_area=100
                                                                 )
     masks = mask_generator.generate(image)
