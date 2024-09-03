@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from PIL import Image
 import torch
+import torchvision
 from sam2.sam2_video_predictor import SAM2VideoPredictor
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 
@@ -66,9 +67,17 @@ def track(masks: Sequence[torch.Tensor]) -> None:
         # plt.show()
 
         # propagate the prompts to get masklets throughout the video
+        color = torch.rand((len(object_ids)+1, 3), device='cuda')
+        color[-1] = torch.zeros(3)
         for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
-            print(frame_idx, object_ids, masks.shape)
-            
+            # print(frame_idx, object_ids, masks.shape)
+            map = torch.full(masks.shape[-2:], -1, device='cuda')
+            for id, mask in zip(object_ids, masks, strict=True):
+                mask = mask[0]>0
+                # assert torch.all(map[mask]==-1).item()
+                map[mask] = id
+            image = color[map]
+            torchvision.utils.save_image(image.permute(2,0,1), f'data/lerf/waldo_kitchen/temp/{str(frame_idx).rjust(5,'0')}.jpg')
             # show_mask((masks[0] > 0.0).cpu().numpy(), ax, obj_id=object_ids[0], random_color=True)
             # plt.show()
 
@@ -83,7 +92,7 @@ def mask():
                                                                 # stability_score_thresh=0.85,
                                                                 # crop_n_layers=1,
                                                                 # crop_n_points_downscale_factor=1,
-                                                                # min_mask_region_area=100
+                                                                min_mask_region_area=100
                                                                 )
     masks = mask_generator.generate(image)
     smap = np.zeros_like(image)
