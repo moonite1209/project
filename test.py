@@ -1,4 +1,5 @@
 import os
+import shutil
 import io
 from typing import List, Sequence
 import matplotlib.axes
@@ -58,19 +59,11 @@ def track(masks: Sequence[torch.Tensor]) -> None:
         # frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, ann_frame_idx, ann_obj_id, points, labels)
         for id, mask in enumerate(masks):
             frame_idx, object_ids, masks = predictor.add_new_mask(state, ann_frame_idx, id, mask)
-
-        fig, ax = plt.subplots()
-
-        # ax.imshow(Image.open(os.path.join(video_dir, frame_names[ann_frame_idx])))
-        # show_points(points, labels, ax)
-        # show_mask((masks[0] > 0.0).cpu().numpy(), ax, obj_id=object_ids[0])
-        # plt.show()
-
         # propagate the prompts to get masklets throughout the video
         color = torch.rand((len(object_ids)+1, 3), device='cuda')
         color[-1] = torch.zeros(3)
         for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
-            # print(frame_idx, object_ids, masks.shape)
+            print(frame_idx, object_ids, masks.shape)
             map = torch.full(masks.shape[-2:], -1, device='cuda')
             for id, mask in zip(object_ids, masks, strict=True):
                 mask = mask[0]>0
@@ -78,8 +71,6 @@ def track(masks: Sequence[torch.Tensor]) -> None:
                 map[mask] = id
             image = color[map]
             torchvision.utils.save_image(image.permute(2,0,1), f'data/lerf/waldo_kitchen/temp/{str(frame_idx).rjust(5,'0')}.jpg')
-            # show_mask((masks[0] > 0.0).cpu().numpy(), ax, obj_id=object_ids[0], random_color=True)
-            # plt.show()
 
 def mask():
     img_path = 'data/lerf/waldo_kitchen/input/00000.jpg'
