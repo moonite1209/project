@@ -57,9 +57,9 @@ def track(masks: Sequence[torch.Tensor]) -> None:
 
         # add new prompts and instantly get the output on the same frame
         # frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, ann_frame_idx, ann_obj_id, points, labels)
-        for id, mask in enumerate(masks):
-            frame_idx, object_ids, masks = predictor.add_new_mask(state, ann_frame_idx, id, mask)
-        frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, 10, id+1, points, labels)
+        # for id, mask in enumerate(masks):
+        #     frame_idx, object_ids, masks = predictor.add_new_mask(state, ann_frame_idx, id, mask)
+        frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, 10, 0, points, labels)
         # propagate the prompts to get masklets throughout the video
         color = torch.rand((len(object_ids)+1, 3), device='cuda')
         color[-1] = torch.zeros(3)
