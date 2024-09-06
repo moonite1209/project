@@ -47,9 +47,9 @@ def track(masks: Sequence[torch.Tensor]) -> None:
     ann_frame_idx = 0  # the frame index we interact with
     ann_obj_id = 0  # give a unique id to each object we interact with (it can be any integers)
     # Let's add a positive click at (x, y) = (210, 350) to get started
-    points = np.array([[2, 326], [300, 300]], dtype=np.float32)
+    points = np.array([[300, 300]], dtype=np.float32)
     # for labels, `1` means positive click and `0` means negative click
-    labels = np.array([1, 1], np.int32)
+    labels = np.array([1], np.int32)
     predictor = SAM2VideoPredictor.from_pretrained("facebook/sam2-hiera-large")
 
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
@@ -63,7 +63,7 @@ def track(masks: Sequence[torch.Tensor]) -> None:
         # propagate the prompts to get masklets throughout the video
         color = torch.rand((len(object_ids)+1, 3), device='cuda')
         color[-1] = torch.zeros(3)
-        for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
+        for frame_idx, object_ids, masks in predictor.propagate_in_video(state, start_frame_idx=0):
             print(frame_idx, object_ids, masks.shape)
             map = torch.full(masks.shape[-2:], -1, device='cuda')
             for id, mask in zip(object_ids, masks, strict=True):
