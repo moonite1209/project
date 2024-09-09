@@ -97,9 +97,11 @@ def mask():
         smap[mask]=color
     track([m['segmentation'] for m in masks])
 
-def video_segment(images, mask_generator, predictor):
-    pass
-def extract_semantics(images, mask_generator, predictor, save_folder):
+def video_segment(images: np.ndarray, mask_generator: SAM2AutomaticMaskGenerator, predictor: SAM2VideoPredictor):
+    entitys = []
+    for image in images:
+
+def extract_semantics(images: np.ndarray, mask_generator: SAM2AutomaticMaskGenerator, predictor: SAM2VideoPredictor, save_folder: str):
     pass
 
 def seed_everything(seed_value):
