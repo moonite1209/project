@@ -15,29 +15,32 @@ from sam2.sam2_video_predictor import SAM2VideoPredictor
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 import cv2
 
-def show_mask(mask, ax: matplotlib.axes.Axes, obj_id=None, random_color=False):
-    ax.clear()
-    if random_color:
-        color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
-    else:
-        cmap = plt.get_cmap("tab10")
-        cmap_idx = 0 if obj_id is None else obj_id
-        color = np.array([*cmap(cmap_idx)[:3], 0.6])
-    h, w = mask.shape[-2:]
-    mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
-    img = ax.imshow(mask_image)
+image_path = None
+mask_generator = None
+predictor = None
+state = None
+class Segments:
+    container: list
+    def __init__(self, image_num, image_height, image_width) -> None:
+        self.image_num = image_num
+        self.image_height = image_height
+        self.image_width = image_width
+        self.cursor = 0
+        self.container = []
+        
+    def remove_duplicate(self, masks):
+        return masks
+    
+    def append(self, masks):
+        pass
 
-def show_points(coords, labels, ax, marker_size=200):
-    pos_points = coords[labels==1]
-    neg_points = coords[labels==0]
-    ax.scatter(pos_points[:, 0], pos_points[:, 1], color='green', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)
-    ax.scatter(neg_points[:, 0], neg_points[:, 1], color='red', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)
+class Entities:
+    container: list
+    def __init__(self) -> None:
+        self.container = []
 
-
-def show_box(box, ax):
-    x0, y0 = box[0], box[1]
-    w, h = box[2] - box[0], box[3] - box[1]
-    ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))
+    def append(self, masks):
+        self.container.extend(masks)
 
 def track(masks: Sequence[torch.Tensor]) -> None:
     video_dir = 'data/lerf/waldo_kitchen/input'
@@ -97,12 +100,45 @@ def mask():
         smap[mask]=color
     track([m['segmentation'] for m in masks])
 
-def video_segment(images: np.ndarray, mask_generator: SAM2AutomaticMaskGenerator, predictor: SAM2VideoPredictor):
-    entitys = []
-    for image in images:
+def mask_filter(mask):
+    return True
 
-def extract_semantics(images: np.ndarray, mask_generator: SAM2AutomaticMaskGenerator, predictor: SAM2VideoPredictor, save_folder: str):
-    pass
+def get_masks(image: np.ndarray):
+    global mask_generator
+    masks=mask_generator.generate(image)
+    return [mask for mask in masks if mask_filter(mask)]
+
+def get_video_masks(frame_num, start_frame_index, masks):
+    global predictor, state
+    masks = [m['segmentation'] for m in masks]
+    out_masks = [None for i in range(frame_num)]
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        predictor.reset_state(state)
+        for id, mask in enumerate(masks):
+            predictor.add_new_mask(state, start_frame_index, id, mask)
+        for frame_index, object_ids, masks in predictor.propagate_in_video(state):
+            if frame_index == start_frame_index:
+                continue
+            out_masks[frame_index] = masks
+        for frame_index, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
+            if frame_index == start_frame_index:
+                continue
+            out_masks[frame_index] = masks
+    return out_masks
+
+
+def video_segment(images: np.ndarray):
+    global image_path, mask_generator, predictor, state
+    segments = Segments(len(images), images.shape[2], images.shape[3])
+    entities  =Entities()
+    for image in images:
+        masks = get_masks(image)
+        masks = segments.remove_duplicate(masks)
+        get_video_masks(segments.image_num, segments.cursor, masks)
+        segments.append(masks)
+        
+def extract_semantics(images: np.ndarray, save_folder: str):
+    global image_path, mask_generator, predictor, state
 
 def seed_everything(seed_value):
     random.seed(seed_value)
@@ -127,6 +163,7 @@ def prepare_args():
     return parser.parse_args()
 
 def main() -> None:
+    global image_path, mask_generator, predictor, state
     seed_everything(42)
     args = prepare_args()
     image_path = os.path.join(args.dataset_path, args.image_folder)
@@ -140,6 +177,8 @@ def main() -> None:
                                                                 min_mask_region_area=100
                                                                 )
     predictor = SAM2VideoPredictor.from_pretrained(args.sam_path)
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        state = predictor.init_state(image_path)
     img_list = []
     WARNED = False
     images = [os.path.join(image_path, p) for p in os.listdir(image_path)]
@@ -171,8 +210,8 @@ def main() -> None:
 
     save_folder = os.path.join(args.dataset_path, args.save_folder)
     os.makedirs(save_folder, exist_ok=True)
-    video_segment(images, mask_generator, predictor)
-    extract_semantics(images, mask_generator, predictor, save_folder)
+    video_segment(images)
+    extract_semantics(images, save_folder)
 
 if __name__  == '__main__':
     main()
