@@ -36,11 +36,22 @@ class Segments:
 
 class Entities:
     container: list
-    def __init__(self) -> None:
+    def __init__(self, iamge_num) -> None:
         self.container = []
 
     def append(self, masks):
         self.container.extend(masks)
+
+    def add_entity_group(self, masks):
+        self.container.append({
+            'masks': masks,
+
+        })
+        pass
+
+    def add_entities(self, masks):
+        pass
+
 
 def track(masks: Sequence[torch.Tensor]) -> None:
     video_dir = 'data/lerf/waldo_kitchen/input'
@@ -106,11 +117,10 @@ def mask_filter(mask):
 def get_masks(image: np.ndarray):
     global mask_generator
     masks=mask_generator.generate(image)
-    return [mask for mask in masks if mask_filter(mask)]
+    return [mask['segmentation'] for mask in masks if mask_filter(mask)]
 
 def get_video_masks(frame_num, start_frame_index, masks):
     global predictor, state
-    masks = [m['segmentation'] for m in masks]
     out_masks = [None for i in range(frame_num)]
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
         predictor.reset_state(state)
@@ -130,7 +140,7 @@ def get_video_masks(frame_num, start_frame_index, masks):
 def video_segment(images: np.ndarray):
     global image_path, mask_generator, predictor, state
     segments = Segments(len(images), images.shape[2], images.shape[3])
-    entities  =Entities()
+    entities  =Entities(len(images))
     for image in images:
         masks = get_masks(image)
         masks = segments.remove_duplicate(masks)
