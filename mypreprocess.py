@@ -14,6 +14,7 @@ import torchvision
 from sam2.sam2_video_predictor import SAM2VideoPredictor
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 import cv2
+from tqdm import tqdm
 
 image_path = None
 mask_generator = None
@@ -169,7 +170,7 @@ def video_segment(images: np.ndarray):
     global image_path, mask_generator, predictor, state
     segments = Segments(len(images), images.shape[1], images.shape[2])
     entities  =Entities(len(images))
-    for current_frame, image in enumerate(images):
+    for current_frame, image in tqdm(enumerate(images), desc='video_segment'):
         prompt = get_prompt(image)
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
         prompt = entities.remove_duplicate(frame_idx, object_ids, masks, prompt)
