@@ -39,18 +39,24 @@ class Entities:
     def __init__(self, iamge_num) -> None:
         self.container = []
 
-    def append(self, masks):
-        self.container.extend(masks)
+    def remove_duplicate(self, frame_idx, object_ids, masks, prompt):
+        for entity in self.container:
+            for i, mask in enumerate(masks):
+                if iou(entity[frame_idx], mask)>0.8:
+                    prompt.pop(object_ids[i])
+        return prompt
 
-    def add_entity_group(self, masks):
-        self.container.append({
-            'masks': masks,
+    def add_entities(self, prompt):
+        object_ids = []
+        for p in prompt:
+            object_ids.append(len(self.container))
+            self.container.append({})
+        return object_ids
 
-        })
-        pass
-
-    def add_entities(self, masks):
-        pass
+    def add_entity_masks(self, frame_idx, object_ids, masks: torch.Tensor):
+        for id, mask in zip(object_ids, masks, strict=True):
+            entity = self.container[id]
+            entity[frame_idx] = mask.squeeze(0)
 
 
 def track(masks: Sequence[torch.Tensor]) -> None:
@@ -111,13 +117,35 @@ def mask():
         smap[mask]=color
     track([m['segmentation'] for m in masks])
 
-def mask_filter(mask):
-    return True
+def iou(mask1, mask2):
+    mask1=mask1>0
+    mask2=mask2>0
+    return (mask1 and mask2).sum()/(mask1 or mask2).sum()
 
-def get_masks(image: np.ndarray):
+def get_entities(frame_idx, prompt):
+    global predictor, state
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        predictor.reset_state(state)
+        for id, p in enumerate(prompt):
+            predictor.add_new_mask(state, frame_idx, id, p)
+        for frame_index, object_ids, masks in predictor.propagate_in_video(state): # masks: (n, 1, h, w)
+            if frame_index == frame_idx:
+                break
+    return frame_index, object_ids, masks
+
+def prompt_filter(mask):
+    mask=mask['segmentation']>0
+    x = np.zeros_like(mask)
+    x[0, ...] = True
+    x[-1, ...] = True
+    x[..., 0] = True
+    x[..., -1] = True
+    return ~np.any(mask & x)
+
+def get_prompt(image: torch.Tensor):
     global mask_generator
-    masks=mask_generator.generate(image)
-    return [mask['segmentation'] for mask in masks if mask_filter(mask)]
+    masks=mask_generator.generate(image.numpy())
+    return [torch.from_numpy(mask['segmentation']) for mask in masks if prompt_filter(mask)]
 
 def get_video_masks(frame_num, start_frame_index, masks):
     global predictor, state
@@ -139,13 +167,25 @@ def get_video_masks(frame_num, start_frame_index, masks):
 
 def video_segment(images: np.ndarray):
     global image_path, mask_generator, predictor, state
-    segments = Segments(len(images), images.shape[2], images.shape[3])
+    segments = Segments(len(images), images.shape[1], images.shape[2])
     entities  =Entities(len(images))
-    for image in images:
-        masks = get_masks(image)
-        masks = segments.remove_duplicate(masks)
-        get_video_masks(segments.image_num, segments.cursor, masks)
-        segments.append(masks)
+    for current_frame, image in enumerate(images):
+        prompt = get_prompt(image)
+        frame_idx, object_ids, masks = get_entities(current_frame, prompt)
+        prompt = entities.remove_duplicate(frame_idx, object_ids, masks, prompt)
+        ids = entities.add_entities(prompt)
+
+        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+            predictor.reset_state(state)
+            for id, p in zip(ids, prompt, strict=True):
+                predictor.add_new_mask(state, current_frame, id, p)
+            for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
+                entities.add_entity_masks(frame_idx, object_ids, masks)
+            for frame_idx, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
+                if frame_idx == current_frame:
+                    continue
+                entities.add_entity_masks(frame_idx, object_ids, masks)
+    return entities
         
 def extract_semantics(images: np.ndarray, save_folder: str):
     global image_path, mask_generator, predictor, state
@@ -215,7 +255,7 @@ def main() -> None:
         image = cv2.resize(image, resolution)
         image = torch.from_numpy(image)
         img_list.append(image)
-    images = [img.permute(2, 0, 1)[None, ...] for img in img_list]
+    images = [img[None, ...] for img in img_list]
     images = torch.cat(images)
 
     save_folder = os.path.join(args.dataset_path, args.save_folder)
