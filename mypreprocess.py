@@ -121,7 +121,7 @@ def mask():
 def iou(mask1, mask2):
     mask1=mask1>0
     mask2=mask2>0
-    return (mask1 and mask2).sum()/(mask1 or mask2).sum()
+    return (mask1 & mask2).sum()/(mask1 | mask2).sum()
 
 def get_entities(frame_idx, prompt):
     global predictor, state
