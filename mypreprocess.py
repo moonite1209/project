@@ -38,6 +38,7 @@ class Segments:
         for i, mask in enumerate(masks):
             if duplicate(smap, mask)>0.8:
                 prompt.pop(i)
+                print(f'pop index {i} from {prompt}')
         return prompt
     
     def add_masks(self, frame_idx, object_ids, masks):
