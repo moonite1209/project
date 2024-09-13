@@ -36,7 +36,7 @@ class Segments:
         smap = self.smaps[frame_idx]
         for i, mask in enumerate(masks):
             if duplicate(smap, mask)>0.8:
-                prompt.pop(object_ids[i])
+                prompt.pop(i)
         return prompt
     
     def add_masks(self, frame_idx, object_ids, masks):
@@ -53,7 +53,7 @@ class Entities:
         for entity in self.container:
             for i, mask in enumerate(masks):
                 if iou(entity[frame_idx], mask)>0.8:
-                    prompt.pop(object_ids[i])
+                    prompt.pop(i)
         return prompt
 
     def add_entities(self, current_frame, prompt):
