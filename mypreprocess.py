@@ -16,7 +16,7 @@ from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 import cv2
 from tqdm import tqdm
 
-image_path = None
+image_file = None
 mask_generator = None
 predictor = None
 state = None
@@ -124,9 +124,9 @@ def iou(mask1, mask2):
     return (mask1 & mask2).sum()/(mask1 | mask2).sum()
 
 def get_entities(frame_idx, prompt):
-    global image_path, predictor, state
+    global image_file, predictor, state
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        state = predictor.init_state(image_path)
+        state = predictor.init_state(image_file)
         # predictor.reset_state(state)
         for id, p in enumerate(prompt):
             predictor.add_new_mask(state, frame_idx, id, p)
@@ -150,10 +150,10 @@ def get_prompt(image: torch.Tensor):
     return [torch.from_numpy(mask['segmentation']) for mask in masks if prompt_filter(mask)]
 
 def get_video_masks(frame_num, start_frame_index, masks):
-    global image_path, predictor, state
+    global image_file, predictor, state
     out_masks = [None for i in range(frame_num)]
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        state = predictor.init_state(image_path)
+        state = predictor.init_state(image_file)
         # predictor.reset_state(state)
         for id, mask in enumerate(masks):
             predictor.add_new_mask(state, start_frame_index, id, mask)
@@ -169,7 +169,7 @@ def get_video_masks(frame_num, start_frame_index, masks):
 
 
 def video_segment(images: np.ndarray):
-    global image_path, mask_generator, predictor, state
+    global image_file, mask_generator, predictor, state
     segments = Segments(len(images), images.shape[1], images.shape[2])
     entities  =Entities(len(images))
     for current_frame, image in tqdm(enumerate(images), desc='video_segment'):
@@ -179,7 +179,7 @@ def video_segment(images: np.ndarray):
         ids = entities.add_entities(prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-            state = predictor.init_state(image_path)
+            state = predictor.init_state(image_file)
             # predictor.reset_state(state)
             for id, p in zip(ids, prompt, strict=True):
                 predictor.add_new_mask(state, current_frame, id, p)
@@ -192,7 +192,7 @@ def video_segment(images: np.ndarray):
     return entities
         
 def extract_semantics(images: np.ndarray, save_folder: str):
-    global image_path, mask_generator, predictor, state
+    global image_file, mask_generator, predictor, state
 
 def seed_everything(seed_value):
     random.seed(seed_value)
@@ -217,10 +217,10 @@ def prepare_args():
     return parser.parse_args()
 
 def main() -> None:
-    global image_path, mask_generator, predictor, state
+    global image_file, mask_generator, predictor, state
     seed_everything(42)
     args = prepare_args()
-    image_path = os.path.join(args.dataset_path, args.image_folder)
+    image_file = os.path.join(args.dataset_path, args.image_folder)
     mask_generator = SAM2AutomaticMaskGenerator.from_pretrained(args.sam_path, 
                                                                 # points_per_side=32,
                                                                 # pred_iou_thresh=0.7,
@@ -232,13 +232,13 @@ def main() -> None:
                                                                 )
     predictor = SAM2VideoPredictor.from_pretrained(args.sam_path)
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        state = predictor.init_state(image_path)
+        state = predictor.init_state(image_file)
     img_list = []
     WARNED = False
-    images = [os.path.join(image_path, p) for p in os.listdir(image_path)]
+    images = [os.path.join(image_file, p) for p in os.listdir(image_file)]
     images.sort()
-    for image_path in images:
-        image = cv2.imread(image_path)
+    for image_file in images:
+        image = cv2.imread(image_file)
 
         orig_w, orig_h = image.shape[1], image.shape[0]
         if args.resolution == -1:
