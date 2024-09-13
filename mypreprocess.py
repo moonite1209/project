@@ -35,9 +35,10 @@ class Segments:
     def remove_duplicate(self, frame_idx, object_ids, masks, prompt):
         smap = self.smaps[frame_idx]
         for i, mask in enumerate(masks):
+            mask.squeeze_()
             if duplicate(smap, mask)>0.8:
                 prompt.pop(object_ids[i])
-        return masks
+        return prompt
     
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
