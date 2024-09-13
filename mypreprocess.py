@@ -138,8 +138,12 @@ def video_segment(images: np.ndarray):
     save_smap(segments, entities)
     return segments, entities
 
-def get_entity_image(images, mask):
-    pass
+def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
+    image = image.clone() 
+    image[mask['segmentation']==0] = np.array([0, 0,  0], dtype=np.uint8) #分割区域外为白色
+    x,y,w,h = np.int32(mask['bbox'])
+    seg_img = image[y:y+h, x:x+w, ...] #将img按分割区域bbox裁剪
+    return seg_img
 
 def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entities):
     global save_path, image_path, mask_generator, predictor, state
