@@ -128,6 +128,8 @@ def video_segment(images: np.ndarray):
         prompt = get_prompt(image)
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
         prompt = segments.remove_duplicate(frame_idx, object_ids, masks, prompt)
+        if len(prompt)==0:
+            continue
         ids = entities.add_entities(current_frame, prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
