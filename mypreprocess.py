@@ -1,5 +1,6 @@
 import os
 import gc
+import logging
 import random
 import shutil
 import io
@@ -18,23 +19,30 @@ import cv2
 from tqdm import tqdm
 
 image_path = None
+save_path = None
 mask_generator = None
 predictor = None
 state = None
 class Segments:
-    container: list
+    smaps: list
     def __init__(self, image_num, image_height, image_width) -> None:
         self.image_num = image_num
         self.image_height = image_height
         self.image_width = image_width
         self.cursor = 0
-        self.container = []
+        self.smaps = [torch.full((image_height, image_width), -1, device='cuda') for i in range(image_num)]
         
-    def remove_duplicate(self, masks):
+    def remove_duplicate(self, frame_idx, object_ids, masks, prompt):
+        smap = self.smaps[frame_idx]
+        for i, mask in enumerate(masks):
+            if duplicate(smap, mask)>0.8:
+                prompt.pop(object_ids[i])
         return masks
     
-    def append(self, masks):
-        pass
+    def add_masks(self, frame_idx, object_ids, masks):
+        smap=self.smaps[frame_idx]
+        for id, mask in zip(object_ids, masks, strict=True):
+            smap[mask>0] = id
 
 class Entities:
     container: list
@@ -48,17 +56,24 @@ class Entities:
                     prompt.pop(object_ids[i])
         return prompt
 
-    def add_entities(self, prompt):
+    def add_entities(self, current_frame, prompt):
         object_ids = []
         for p in prompt:
             object_ids.append(len(self.container))
-            self.container.append({})
+            self.container.append({
+                'start_frame': current_frame,
+            })
         return object_ids
 
     def add_entity_masks(self, frame_idx, object_ids, masks: torch.Tensor):
         for id, mask in zip(object_ids, masks, strict=True):
             entity = self.container[id]
             entity[frame_idx] = mask.squeeze(0)
+
+    def get_colormap(self):
+        colormap=[torch.rand(3) for i in range(len(self.container))]
+        colormap.append(torch.zeros(3))
+        return colormap
 
 
 def track(masks: Sequence[torch.Tensor]) -> None:
@@ -119,10 +134,21 @@ def mask():
         smap[mask]=color
     track([m['segmentation'] for m in masks])
 
+def duplicate(smap, mask):
+    smap=smap>=0
+    mask=mask>0
+    return (smap&mask).sum()/mask.sum()
+
 def iou(mask1, mask2):
-    mask1=mask1>0
-    mask2=mask2>0
+    mask1=mask1>=0
+    mask2=mask2>=0
     return (mask1 & mask2).sum()/(mask1 | mask2).sum()
+
+def save_smap(segments: Segments, entities: Entities):
+    colormap = entities.get_colormap()
+    for i, smap in enumerate(segments.smaps):
+        fmap=colormap[smap]
+        torchvision.utils.save_image(fmap, os.path.join(save_path, f'{str(i).rjust(5,'0')}.jpg'))
 
 def get_entities(frame_idx, prompt):
     global image_path, predictor, state
@@ -150,24 +176,6 @@ def get_prompt(image: torch.Tensor):
     masks=mask_generator.generate(image.numpy())
     return [torch.from_numpy(mask['segmentation']) for mask in masks if prompt_filter(mask)]
 
-def get_video_masks(frame_num, start_frame_index, masks):
-    global image_path, predictor, state
-    out_masks = [None for i in range(frame_num)]
-    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        # state = predictor.init_state(image_path)
-        predictor.reset_state(state)
-        for id, mask in enumerate(masks):
-            predictor.add_new_mask(state, start_frame_index, id, mask)
-        for frame_index, object_ids, masks in predictor.propagate_in_video(state):
-            if frame_index == start_frame_index:
-                continue
-            out_masks[frame_index] = masks
-        for frame_index, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
-            if frame_index == start_frame_index:
-                continue
-            out_masks[frame_index] = masks
-    return out_masks
-
 
 def video_segment(images: np.ndarray):
     global image_path, mask_generator, predictor, state
@@ -176,8 +184,8 @@ def video_segment(images: np.ndarray):
     for current_frame, image in tqdm(enumerate(images), desc='video_segment'):
         prompt = get_prompt(image)
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
-        prompt = entities.remove_duplicate(frame_idx, object_ids, masks, prompt)
-        ids = entities.add_entities(prompt)
+        prompt = segments.remove_duplicate(frame_idx, object_ids, masks, prompt)
+        ids = entities.add_entities(current_frame, prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
             # state = predictor.init_state(image_path)
@@ -185,14 +193,12 @@ def video_segment(images: np.ndarray):
             for id, p in zip(ids, prompt, strict=True):
                 predictor.add_new_mask(state, current_frame, id, p)
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
-                entities.add_entity_masks(frame_idx, object_ids, masks)
+                segments.add_masks(frame_idx, object_ids, masks)
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
                 if frame_idx == current_frame:
                     continue
-                entities.add_entity_masks(frame_idx, object_ids, masks)
-        gc.collect()
-        print(torch.cuda.memory_summary())
-    return entities
+                segments.add_masks(frame_idx, object_ids, masks)
+    return segments, entities
         
 def extract_semantics(images: np.ndarray, save_folder: str):
     global image_path, mask_generator, predictor, state
@@ -220,10 +226,11 @@ def prepare_args():
     return parser.parse_args()
 
 def main() -> None:
-    global image_path, mask_generator, predictor, state
+    global save_path, image_path, mask_generator, predictor, state
     seed_everything(42)
     args = prepare_args()
     image_path = os.path.join(args.dataset_path, args.image_folder)
+    save_path = os.path.join(args.dataset_path, args.save_folder)
     mask_generator = SAM2AutomaticMaskGenerator.from_pretrained(args.sam_path, 
                                                                 # points_per_side=32,
                                                                 # pred_iou_thresh=0.7,
@@ -265,8 +272,7 @@ def main() -> None:
     images = [img[None, ...] for img in img_list]
     images = torch.cat(images)
 
-    save_folder = os.path.join(args.dataset_path, args.save_folder)
-    os.makedirs(save_folder, exist_ok=True)
+    os.makedirs(save_path, exist_ok=True)
     video_segment(images)
     extract_semantics(images, save_folder)
 
