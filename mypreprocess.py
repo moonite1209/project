@@ -145,6 +145,7 @@ def video_segment(images: np.ndarray):
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
+    save_smap(segments, entities)
     return segments, entities
         
 def extract_semantics(images: np.ndarray, save_folder: str):
