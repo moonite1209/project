@@ -35,7 +35,6 @@ class Segments:
     def remove_duplicate(self, frame_idx, object_ids, masks, prompt):
         smap = self.smaps[frame_idx]
         for i, mask in enumerate(masks):
-            mask.squeeze_()
             if duplicate(smap, mask)>0.8:
                 prompt.pop(object_ids[i])
         return prompt
@@ -159,6 +158,7 @@ def get_entities(frame_idx, prompt):
         for id, p in enumerate(prompt):
             predictor.add_new_mask(state, frame_idx, id, p)
         for frame_index, object_ids, masks in predictor.propagate_in_video(state): # masks: (n, 1, h, w)
+            masks = masks.squeeze(1)
             if frame_index == frame_idx:
                 break
     return frame_index, object_ids, masks
@@ -194,8 +194,10 @@ def video_segment(images: np.ndarray):
             for id, p in zip(ids, prompt, strict=True):
                 predictor.add_new_mask(state, current_frame, id, p)
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
+                masks = masks.squeeze(1)
                 segments.add_masks(frame_idx, object_ids, masks)
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
+                masks = masks.squeeze(1)
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
