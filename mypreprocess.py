@@ -126,8 +126,8 @@ def iou(mask1, mask2):
 def get_entities(frame_idx, prompt):
     global image_path, predictor, state
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        state = predictor.init_state(image_path)
-        # predictor.reset_state(state)
+        # state = predictor.init_state(image_path)
+        predictor.reset_state(state)
         for id, p in enumerate(prompt):
             predictor.add_new_mask(state, frame_idx, id, p)
         for frame_index, object_ids, masks in predictor.propagate_in_video(state): # masks: (n, 1, h, w)
@@ -153,8 +153,8 @@ def get_video_masks(frame_num, start_frame_index, masks):
     global image_path, predictor, state
     out_masks = [None for i in range(frame_num)]
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        state = predictor.init_state(image_path)
-        # predictor.reset_state(state)
+        # state = predictor.init_state(image_path)
+        predictor.reset_state(state)
         for id, mask in enumerate(masks):
             predictor.add_new_mask(state, start_frame_index, id, mask)
         for frame_index, object_ids, masks in predictor.propagate_in_video(state):
@@ -179,8 +179,8 @@ def video_segment(images: np.ndarray):
         ids = entities.add_entities(prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-            state = predictor.init_state(image_path)
-            # predictor.reset_state(state)
+            # state = predictor.init_state(image_path)
+            predictor.reset_state(state)
             for id, p in zip(ids, prompt, strict=True):
                 predictor.add_new_mask(state, current_frame, id, p)
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
@@ -189,6 +189,7 @@ def video_segment(images: np.ndarray):
                 if frame_idx == current_frame:
                     continue
                 entities.add_entity_masks(frame_idx, object_ids, masks)
+        print(torch.cuda.memory_summary())
     return entities
         
 def extract_semantics(images: np.ndarray, save_folder: str):
