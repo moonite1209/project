@@ -33,6 +33,7 @@ class Segments:
         self.smaps = [torch.full((image_height, image_width), -1, device='cuda') for i in range(image_num)]
         
     def remove_duplicate(self, frame_idx, object_ids, masks, prompt):
+        assert len(masks)==len(prompt)
         smap = self.smaps[frame_idx]
         for i, mask in enumerate(masks):
             if duplicate(smap, mask)>0.8:
@@ -76,64 +77,6 @@ class Entities:
         return colormap
 
 
-def track(masks: Sequence[torch.Tensor]) -> None:
-    video_dir = 'data/lerf/waldo_kitchen/input'
-    # scan all the JPEG frame names in this directory
-    frame_names = [
-        p for p in os.listdir(video_dir)
-        if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG"]
-    ]
-    frame_names.sort(key=lambda p: int(os.path.splitext(p)[0]))
-    ann_frame_idx = 0  # the frame index we interact with
-    ann_obj_id = 0  # give a unique id to each object we interact with (it can be any integers)
-    # Let's add a positive click at (x, y) = (210, 350) to get started
-    points = np.array([[300, 300]], dtype=np.float32)
-    # for labels, `1` means positive click and `0` means negative click
-    labels = np.array([1], np.int32)
-    predictor = SAM2VideoPredictor.from_pretrained("facebook/sam2-hiera-large")
-
-    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        state = predictor.init_state(video_dir)
-
-        # add new prompts and instantly get the output on the same frame
-        # frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, ann_frame_idx, ann_obj_id, points, labels)
-        for id, mask in enumerate(masks):
-            frame_idx, object_ids, masks = predictor.add_new_mask(state, ann_frame_idx, id, mask)
-        # frame_idx, object_ids, masks = predictor.add_new_points_or_box(state, 10, 0, points, labels)
-        # propagate the prompts to get masklets throughout the video
-        color = torch.rand((len(object_ids)+1, 3), device='cuda')
-        color[-1] = torch.zeros(3)
-        for frame_idx, object_ids, masks in predictor.propagate_in_video(state, start_frame_idx=0):
-            print(frame_idx, object_ids, masks.shape)
-            map = torch.full(masks.shape[-2:], -1, device='cuda')
-            for id, mask in zip(object_ids, masks, strict=True):
-                mask = mask[0]>0
-                # assert torch.all(map[mask]==-1).item()
-                map[mask] = id
-            image = color[map]
-            torchvision.utils.save_image(image.permute(2,0,1), f'data/lerf/waldo_kitchen/temp/{str(frame_idx).rjust(5,'0')}.jpg')
-
-def mask():
-    img_path = 'data/lerf/waldo_kitchen/input/00000.jpg'
-    image = Image.open(img_path)
-    image = np.array(image.convert("RGB"))
-    mask_generator = SAM2AutomaticMaskGenerator.from_pretrained("facebook/sam2-hiera-large", 
-                                                                # points_per_side=32,
-                                                                # pred_iou_thresh=0.7,
-                                                                # box_nms_thresh=0.7,
-                                                                # stability_score_thresh=0.85,
-                                                                # crop_n_layers=1,
-                                                                # crop_n_points_downscale_factor=1,
-                                                                min_mask_region_area=100
-                                                                )
-    masks = mask_generator.generate(image)
-    smap = np.zeros_like(image)
-    for mask in masks:
-        mask=mask['segmentation']
-        color = np.random.randint((256,256,256), dtype=np.uint8)
-        smap[mask]=color
-    track([m['segmentation'] for m in masks])
-
 def duplicate(smap, mask):
     smap=smap>=0
     mask=mask>0
@@ -148,7 +91,7 @@ def save_smap(segments: Segments, entities: Entities):
     colormap = entities.get_colormap()
     for i, smap in enumerate(segments.smaps):
         fmap=colormap[smap]
-        torchvision.utils.save_image(fmap, os.path.join(save_path, f'{str(i).rjust(5,'0')}.jpg'))
+        torchvision.utils.save_image(fmap.permute(2,0,1), os.path.join(save_path, f'{str(i).rjust(5,'0')}.jpg'))
 
 def get_entities(frame_idx, prompt):
     global image_path, predictor, state
@@ -277,7 +220,7 @@ def main() -> None:
 
     os.makedirs(save_path, exist_ok=True)
     video_segment(images)
-    extract_semantics(images, save_folder)
+    extract_semantics(images, save_path)
 
 if __name__  == '__main__':
     main()
