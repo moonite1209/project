@@ -49,13 +49,14 @@ class Entities:
     def __init__(self, iamge_num) -> None:
         self.container = []
 
-    def add_entities(self, current_frame, prompt):
+    def add_entities(self, current_frame, ids: list, masks, prompt):
         object_ids = []
-        for p in prompt:
+        for i, mask in zip(ids, masks, strict=True):
             object_ids.append(len(self.container))
             self.container.append({
-                'start_frame': current_frame,
-                'prompt': p
+                'prompt_frame': current_frame,
+                'prompt': prompt[i],
+                'mask': mask
             })
         return object_ids
 
@@ -119,7 +120,7 @@ def video_segment(images: np.ndarray):
         prompt = segments.remove_duplicate(frame_idx, object_ids, masks, prompt)
         if len(prompt)==0:
             continue
-        ids = entities.add_entities(current_frame, prompt)
+        ids = entities.add_entities(current_frame, object_ids, masks, prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
             # state = predictor.init_state(image_path)
@@ -136,12 +137,16 @@ def video_segment(images: np.ndarray):
                 segments.add_masks(frame_idx, object_ids, masks)
     save_smap(segments, entities)
     return segments, entities
-        
-def extract_semantics(images: np.ndarray, segments: Segments, entities: Entities):
+
+def get_entity_image(images, mask):
+    pass
+
+def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entities):
     global save_path, image_path, mask_generator, predictor, state
     for id, entity in enumerate(entities.container):
-        smap = segments.smaps[entity['start_frame']]
+        smap = segments.smaps[entity['prompt_frame']]
         mask = smap == id
+        image = get_entity_image(images[entity['prompt_frame']], mask)
 
 
 def seed_everything(seed_value):
@@ -215,7 +220,7 @@ def main() -> None:
 
     os.makedirs(save_path, exist_ok=True)
     segments, entities = video_segment(images)
-    extract_semantics(images, segments, entities, save_path)
+    extract_semantics(images, segments, entities)
 
 if __name__  == '__main__':
     main()
