@@ -49,31 +49,20 @@ class Entities:
     def __init__(self, iamge_num) -> None:
         self.container = []
 
-    def remove_duplicate(self, frame_idx, object_ids, masks, prompt):
-        for entity in self.container:
-            for i, mask in enumerate(masks):
-                if iou(entity[frame_idx], mask)>0.8:
-                    prompt.pop(i)
-        return prompt
-
     def add_entities(self, current_frame, prompt):
         object_ids = []
         for p in prompt:
             object_ids.append(len(self.container))
             self.container.append({
                 'start_frame': current_frame,
+                'prompt': p
             })
         return object_ids
-
-    def add_entity_masks(self, frame_idx, object_ids, masks: torch.Tensor):
-        for id, mask in zip(object_ids, masks, strict=True):
-            entity = self.container[id]
-            entity[frame_idx] = mask.squeeze(0)
 
     def get_colormap(self):
         colormap=[torch.rand(3) for i in range(len(self.container))]
         colormap.append(torch.zeros(3))
-        return torch.stack(colormap)
+        return torch.stack(colormap).cuda()
 
 
 def duplicate(smap, mask):
@@ -148,8 +137,12 @@ def video_segment(images: np.ndarray):
     save_smap(segments, entities)
     return segments, entities
         
-def extract_semantics(images: np.ndarray, save_folder: str):
-    global image_path, mask_generator, predictor, state
+def extract_semantics(images: np.ndarray, segments: Segments, entities: Entities):
+    global save_path, image_path, mask_generator, predictor, state
+    for id, entity in enumerate(entities.container):
+        smap = segments.smaps[entity['start_frame']]
+        mask = smap == id
+
 
 def seed_everything(seed_value):
     random.seed(seed_value)
@@ -221,8 +214,8 @@ def main() -> None:
     images = torch.cat(images)
 
     os.makedirs(save_path, exist_ok=True)
-    video_segment(images)
-    extract_semantics(images, save_path)
+    segments, entities = video_segment(images)
+    extract_semantics(images, segments, entities, save_path)
 
 if __name__  == '__main__':
     main()
