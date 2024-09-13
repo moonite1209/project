@@ -73,7 +73,7 @@ class Entities:
     def get_colormap(self):
         colormap=[torch.rand(3) for i in range(len(self.container))]
         colormap.append(torch.zeros(3))
-        return colormap
+        return torch.stack(colormap)
 
 
 def duplicate(smap, mask):
