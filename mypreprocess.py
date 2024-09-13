@@ -33,12 +33,11 @@ class Segments:
         self.smaps = [torch.full((image_height, image_width), -1, device='cuda') for i in range(image_num)]
         
     def remove_duplicate(self, frame_idx, object_ids, masks, prompt: list):
-        assert len(masks)==len(prompt)
         smap = self.smaps[frame_idx]
         for i, mask in enumerate(masks):
             if duplicate(smap, mask)>0.8:
-                prompt.pop(i)
-        return prompt
+                prompt[i]=None
+        return [p for p in prompt if p!=None]
     
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
@@ -102,8 +101,6 @@ def get_entities(frame_idx, prompt):
             predictor.add_new_mask(state, frame_idx, id, p)
         for frame_index, object_ids, masks in predictor.propagate_in_video(state): # masks: (n, 1, h, w)
             masks = masks.squeeze(1)
-            if len(masks)!=len(prompt):
-                breakpoint()
             if frame_index == frame_idx:
                 break
     return frame_index, object_ids, masks
