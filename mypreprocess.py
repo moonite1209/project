@@ -1,4 +1,5 @@
 import os
+import gc
 import random
 import shutil
 import io
@@ -189,6 +190,7 @@ def video_segment(images: np.ndarray):
                 if frame_idx == current_frame:
                     continue
                 entities.add_entity_masks(frame_idx, object_ids, masks)
+        gc.collect()
         print(torch.cuda.memory_summary())
     return entities
         
