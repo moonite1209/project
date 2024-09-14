@@ -138,12 +138,27 @@ def video_segment(images: np.ndarray):
     save_smap(segments, entities)
     return segments, entities
 
+def get_bbox(mask: torch.Tensor):
+    coord = mask.argwhere()
+    minx, miny = coord.min(dim=0)
+    maxx, maxy = coord.max(dim=0)
+    return minx, miny, maxx-minx+1, maxy-miny+1
+
 def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
-    image = image.clone() 
-    image[mask['segmentation']==0] = np.array([0, 0,  0], dtype=np.uint8) #分割区域外为白色
-    x,y,w,h = np.int32(mask['bbox'])
-    seg_img = image[y:y+h, x:x+w, ...] #将img按分割区域bbox裁剪
-    return seg_img
+    image = image.clone()
+    # crop by bbox
+    x,y,h,w = get_bbox(mask)
+    image[~mask] = torch.zeros(3) #分割区域外为白色
+    image = image[x:x+h, y:y+w, ...] #将img按分割区域bbox裁剪
+    # pad to square
+    l = max(h,w)
+    paded_img = torch.zeros((l, l, 3))
+    if h > w:
+        paded_img[:,(h-w)//2:(h-w)//2 + w, :] = image
+    else:
+        paded_img[(w-h)//2:(w-h)//2 + h, :, :] = image
+    paded_img = torch.from_numpy(cv2.resize(paded_img.numpy(), (224,224)))
+    return paded_img
 
 def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entities):
     global save_path, image_path, mask_generator, predictor, state
