@@ -258,7 +258,7 @@ def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
 def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entities):
     global save_path, image_path, mask_generator, predictor, clip, state
     entity_images=[]
-    for id, entity in enumerate(entities.container):
+    for id, entity in tqdm(enumerate(entities.container), desc='extract semantics'):
         smap = segments.smaps[entity['prompt_frame']]
         mask = smap == id
         entity_image = get_entity_image(images[entity['prompt_frame']], mask)
