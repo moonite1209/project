@@ -206,6 +206,8 @@ def video_segment(images: np.ndarray):
     entities  =Entities(len(images))
     for current_frame, image in tqdm(enumerate(images), desc='video_segment'):
         prompt = get_prompt(image)
+        if len(prompt)==0:
+            continue
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
         prompt = segments.remove_duplicate(frame_idx, object_ids, masks, prompt)
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
