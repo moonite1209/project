@@ -19,7 +19,8 @@ def cos_loss(network_output, gt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_path', type=str, required=True)
+    parser.add_argument('--dataset_path', '-s', type=str, required=True)
+    parser.add_argument('--segment_folder', type=str, default='result')
     parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--encoder_dims',
@@ -32,11 +33,11 @@ if __name__ == '__main__':
                     type=int,
                     default=[16, 32, 64, 128, 256, 256, 512],
                     )
-    parser.add_argument('--dataset_name', type=str, required=True)
+    parser.add_argument('--dataset_name', type=str)
     args = parser.parse_args()
     dataset_path = args.dataset_path
     num_epochs = args.num_epochs
-    data_dir = f"{dataset_path}/language_features"
+    data_dir = os.path.join(args.dataset_path, args.segment_folder)
     os.makedirs(f'ckpt/{args.dataset_name}', exist_ok=True)
     train_dataset = Autoencoder_dataset(data_dir)
     train_loader = DataLoader(
