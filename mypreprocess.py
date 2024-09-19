@@ -14,6 +14,7 @@ import matplotlib
 from PIL import Image
 import torch
 import torchvision
+from torch.utils.tensorboard import SummaryWriter
 from torch import nn
 from sam2.sam2_video_predictor import SAM2VideoPredictor
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
@@ -28,6 +29,7 @@ predictor = None
 clip = None
 state = None
 device = torch.device('cuda:0')
+tb_writer = None
 
 @dataclass
 class OpenCLIPNetworkConfig:
@@ -132,7 +134,7 @@ class Segments:
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
         for id, mask in zip(object_ids, masks, strict=True):
-            smap[mask>0] = id
+            smap[mask>0][smap[mask>0] == -1] = id
 
 class Entities:
     container: list
@@ -291,7 +293,7 @@ def prepare_args():
     return parser.parse_args()
 
 def main() -> None:
-    global save_path, image_path, mask_generator, predictor, clip, state
+    global save_path, image_path, mask_generator, predictor, clip, state, tb_writer
     seed_everything(42)
     torch.set_default_device(device)
     args = prepare_args()
@@ -307,6 +309,7 @@ def main() -> None:
                                                                 min_mask_region_area=100
                                                                 )
     predictor = SAM2VideoPredictor.from_pretrained(args.sam_path)
+    tb_writer = SummaryWriter(save_path)
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
         state = predictor.init_state(image_path)
     img_list = []
