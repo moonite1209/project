@@ -333,7 +333,7 @@ def main() -> None:
         image = torch.from_numpy(image)
         img_list.append(image)
     images = [img[None, ...] for img in img_list]
-    images = torch.cat(images)
+    images = torch.cat(images).cuda()
 
     os.makedirs(save_path, exist_ok=True)
     segments, entities = video_segment(images)
