@@ -237,7 +237,7 @@ def get_bbox(mask: torch.Tensor):
     return minx, miny, maxx-minx+1, maxy-miny+1
 
 def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
-    image = image.clone()
+    image = image.clone().cuda()
     # crop by bbox
     x,y,h,w = get_bbox(mask)
     image[~mask] = torch.zeros(3, dtype=torch.uint8) #分割区域外为白色
@@ -333,7 +333,7 @@ def main() -> None:
         image = torch.from_numpy(image)
         img_list.append(image)
     images = [img[None, ...] for img in img_list]
-    images = torch.cat(images).cuda()
+    images = torch.cat(images)
 
     os.makedirs(save_path, exist_ok=True)
     segments, entities = video_segment(images)
