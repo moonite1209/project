@@ -241,7 +241,7 @@ def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
     image = image.clone()
     # crop by bbox
     x,y,h,w = get_bbox(mask)
-    image[~mask] = torch.zeros(3) #分割区域外为白色
+    image[~mask] = torch.zeros(3, dtype=torch.uint8) #分割区域外为白色
     image = image[x:x+h, y:y+w, ...] #将img按分割区域bbox裁剪
     # pad to square
     l = max(h,w)
