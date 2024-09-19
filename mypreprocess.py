@@ -254,7 +254,7 @@ def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
         paded_img[:,(h-w)//2:(h-w)//2 + w, :] = image
     else:
         paded_img[(w-h)//2:(w-h)//2 + h, :, :] = image
-    paded_img = torch.from_numpy(cv2.resize(paded_img.numpy(), (224,224)))
+    paded_img = torch.from_numpy(cv2.resize(paded_img.cpu().numpy(), (224,224))).cuda()
     return paded_img
 
 def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entities):
