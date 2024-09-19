@@ -263,7 +263,7 @@ def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entiti
     for id, entity in tqdm(enumerate(entities.container), desc='extract semantics'):
         smap = segments.smaps[entity['prompt_frame']]
         mask = smap == id
-        entity_image = get_entity_image(images[entity['prompt_frame']], mask)
+        entity_image = get_entity_image(images[entity['prompt_frame']], entity['mask']>0)
         entity_images.append(entity_image)
     entity_images = torch.stack(entity_images)
     semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
