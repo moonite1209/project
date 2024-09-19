@@ -228,6 +228,7 @@ def video_segment(images: np.ndarray):
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
+        break
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
     # save_smap(segments, entities)
     return segments, entities
@@ -236,7 +237,7 @@ def get_bbox(mask: torch.Tensor):
     coord = mask.argwhere()
     minx, miny = coord.min(dim=0)
     maxx, maxy = coord.max(dim=0)
-    return minx, miny, maxx-minx+1, maxy-miny+1
+    return minx.item(), miny.item(), maxx.item()-minx.item()+1, maxy.item()-miny.item()+1
 
 def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
     image = image.clone().cuda()
