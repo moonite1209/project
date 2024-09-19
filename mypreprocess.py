@@ -343,6 +343,7 @@ def main() -> None:
 
     os.makedirs(save_path, exist_ok=True)
     segments, entities = video_segment(images)
+    del mask_generator, predictor, state
     clip = OpenCLIPNetwork(OpenCLIPNetworkConfig)
     extract_semantics(images, segments, entities)
 
