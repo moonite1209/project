@@ -208,6 +208,7 @@ def video_segment(images: np.ndarray):
         prompt = get_prompt(image)
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
         prompt = segments.remove_duplicate(frame_idx, object_ids, masks, prompt)
+        frame_idx, object_ids, masks = get_entities(current_frame, prompt)
         if len(prompt)==0:
             continue
         ids = entities.add_entities(current_frame, object_ids, masks, prompt)
@@ -225,6 +226,7 @@ def video_segment(images: np.ndarray):
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
+        break
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
     # save_smap(segments, entities)
     return segments, entities
