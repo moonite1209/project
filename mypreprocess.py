@@ -235,9 +235,11 @@ def video_segment(images: np.ndarray):
 
 def get_bbox(mask: torch.Tensor):
     coord = mask.argwhere()
-    minx, miny = coord.min(dim=0)
-    maxx, maxy = coord.max(dim=0)
-    return minx.item(), miny.item(), maxx.item()-minx.item()+1, maxy.item()-miny.item()+1
+    value, indices = coord.min(dim=0)
+    minx, miny = value
+    value, indices = coord.max(dim=0)
+    maxx, maxy = value
+    return minx, miny, maxx-minx+1, maxy-miny+1
 
 def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
     image = image.clone().cuda()
