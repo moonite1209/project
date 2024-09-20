@@ -232,7 +232,7 @@ def video_segment(images: torch.Tensor):
                 segments.add_masks(frame_idx, object_ids, masks)
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
     for id, entity in enumerate(entities.container):
-        torchvision.utils.save_image((images[entity['prompt_frame']]*entity['mask']).permute(2,0,1), f'temp/{id}_{entity['prompt_frame']}.jpg')
+        torchvision.utils.save_image((images[entity['prompt_frame']]*entity['mask'].unsqueeze(-1)).permute(2,0,1), f'temp/{id}_{entity['prompt_frame']}.jpg')
     return segments, entities
 
 def get_bbox(mask: torch.Tensor):
@@ -342,7 +342,7 @@ def main() -> None:
         image = torch.from_numpy(image)
         img_list.append(image)
     images = [img[None, ...] for img in img_list]
-    images = torch.cat(images)
+    images = torch.cat(images).cuda()
 
     os.makedirs(save_path, exist_ok=True)
     segments, entities = video_segment(images)
