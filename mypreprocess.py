@@ -198,7 +198,7 @@ def prompt_filter(mask):
 
 def get_prompt(image: torch.Tensor):
     global mask_generator
-    masks=mask_generator.generate(image.numpy())
+    masks=mask_generator.generate(image.cpu().numpy())
     return [torch.from_numpy(mask['segmentation']) for mask in masks if prompt_filter(mask)]
 
 
