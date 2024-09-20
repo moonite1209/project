@@ -202,7 +202,7 @@ def get_prompt(image: torch.Tensor):
     return [torch.from_numpy(mask['segmentation']) for mask in masks if prompt_filter(mask)]
 
 
-def video_segment(images: np.ndarray):
+def video_segment(images: torch.Tensor):
     global image_path, mask_generator, predictor, state
     segments = Segments(len(images), images.shape[1], images.shape[2])
     entities  =Entities(len(images))
@@ -231,6 +231,8 @@ def video_segment(images: np.ndarray):
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
+    for id, entity in enumerate(entities.container):
+        torchvision.utils.save_image((images[entity['prompt_frame']]*entity['mask']).permute(2,0,1), f'temp/{id}_{entity['prompt_frame']}.jpg')
     return segments, entities
 
 def get_bbox(mask: torch.Tensor):
@@ -264,7 +266,7 @@ def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entiti
         smap = segments.smaps[entity['prompt_frame']]
         mask = smap == id
         entity_image = get_entity_image(images[entity['prompt_frame']], entity['mask']>0)
-        semantic = clip.encode_image(entity_image.permute(2, 0, 1))
+        semantic = clip.encode_image((entity_image.permute(2, 0, 1)).unsqueeze(0))
         semantics.append(semantic)
     semantics = torch.stack(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
