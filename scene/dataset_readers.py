@@ -68,6 +68,8 @@ def getNerfppNorm(cam_info):
     return {"translate": translate, "radius": radius}
 
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantics_folder):
+    semantics_path = os.path.join(semantics_folder, f"semantics.npy")
+    semantics = np.load(semantics_path)
     cam_infos = []
     for idx, key in enumerate(cam_extrinsics):
         sys.stdout.write('\r')
@@ -103,14 +105,12 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantics_f
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
 
-        segment_path = os.path.join(semantics_folder, f"{image_name}_s.npy")
-        semantic_path = os.path.join(semantics_folder, f"{image_name}_f.npy")
+        segment_path = os.path.join(semantics_folder, f"{image_name}.npy")
         segment = np.load(segment_path)
-        semantic = np.load(semantic_path)
 
         image = Image.open(image_path)
      
-        cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image, segment=segment, semantic=semantic, image_path=image_path, image_name=image_name, width=width, height=height)
+        cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image, segment=segment, semantic=semantics, image_path=image_path, image_name=image_name, width=width, height=height)
         cam_infos.append(cam_info)
     sys.stdout.write('\n')
     return cam_infos

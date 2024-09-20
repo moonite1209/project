@@ -84,6 +84,9 @@ class Camera(nn.Module):
         point_feature = point_feature1.reshape(self.image_height, self.image_width, -1).permute(2, 0, 1)
         return point_feature.cuda(), mask.cuda()
     
+    def get_semantic(self, feature_level = 3):
+        ...
+    
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):
         self.image_width = width
