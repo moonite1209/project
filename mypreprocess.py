@@ -151,6 +151,7 @@ class Entities:
                 'prompt': prompt[i],
                 'mask': mask
             })
+        print(f'add {len(object_ids)} at {current_frame} total {len(self.container)}')
         return object_ids
 
     def get_colormap(self):
