@@ -7,6 +7,7 @@ import shutil
 import io
 import pickle
 import argparse
+import sys
 from typing import List, Sequence, Tuple, Type
 import matplotlib.axes
 import numpy as np
@@ -151,7 +152,7 @@ class Entities:
                 'prompt': prompt[i],
                 'mask': mask
             })
-        print(f'add {len(object_ids)} at {current_frame} total {len(self.container)}')
+        print(f'add {len(object_ids)} at {current_frame} total {len(self.container)} size {sys.getsizeof(self)}')
         return object_ids
 
     def get_colormap(self):
@@ -237,7 +238,7 @@ def video_segment(images: torch.Tensor):
         pickle.dump(segments, sf)
         pickle.dump(entities, ef)
     for id, entity in tqdm(enumerate(entities.container), desc='save entity images'):
-        torchvision.utils.save_image((images[entity['prompt_frame']]*entity['mask'].unsqueeze(-1)).permute(2,0,1), f'temp/{id}_{entity['prompt_frame']}.jpg')
+        torchvision.utils.save_image((images[entity['prompt_frame']]*entity['mask'].unsqueeze(-1)).permute(2,0,1), os.path.join(save_path, 'temp', f'{entity['prompt_frame']}_{id}.jpg'))
     return segments, entities
 
 def get_bbox(mask: torch.Tensor):
