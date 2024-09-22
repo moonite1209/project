@@ -5,6 +5,7 @@ import logging
 import random
 import shutil
 import io
+import pickle
 import argparse
 from typing import List, Sequence, Tuple, Type
 import matplotlib.axes
@@ -231,7 +232,10 @@ def video_segment(images: torch.Tensor):
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
-    for id, entity in enumerate(entities.container):
+    with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
+        pickle.dump(segments, sf)
+        pickle.dump(entities, ef)
+    for id, entity in tqdm(enumerate(entities.container), desc='save entity images'):
         torchvision.utils.save_image((images[entity['prompt_frame']]*entity['mask'].unsqueeze(-1)).permute(2,0,1), f'temp/{id}_{entity['prompt_frame']}.jpg')
     return segments, entities
 
