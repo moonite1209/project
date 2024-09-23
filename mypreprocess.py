@@ -219,7 +219,7 @@ def video_segment(images: torch.Tensor):
             continue
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
         for id, mask in zip(object_ids, masks, strict=True):
-            torchvision.utils.save_image((images[current_frame]*(mask>0).unsqueeze(-1)).permute(2,0,1), os.path.join(save_path, 'temp', f'{current_frame}_{id}.jpg'))
+            torchvision.utils.save_image((images[current_frame]*(mask>0).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{id}.jpg'))
         ids = entities.add_entities(current_frame, object_ids, masks, prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
