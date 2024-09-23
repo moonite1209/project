@@ -250,7 +250,7 @@ def video_segment(images: torch.Tensor):
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
                 masks = masks.squeeze(1)
                 segments.add_masks(frame_idx, object_ids, masks)
-                torchvision.utils.save_image((images[current_frame]*mask_or(masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
+                torchvision.utils.save_image((images[current_frame]*mask_or(*masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
                 masks = masks.squeeze(1)
                 if frame_idx == current_frame:
