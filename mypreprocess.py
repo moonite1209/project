@@ -133,6 +133,7 @@ class Segments:
                 prompt[i]=None
         ret = [p for p in prompt if p!=None]
         print(f'remove {len(prompt)-len(ret)} at {frame_idx}')
+        return ret
     
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
