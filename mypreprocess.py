@@ -223,7 +223,7 @@ def remove_duplicate_prompt(records:list):
         # 检查当前 mask 是否与 unique_masks 中的任何 mask 重叠
         is_duplicate = False
         for idx, unique_record in enumerate(unique_records):
-            if calculate_iou(record, unique_record) > 0.8:
+            if calculate_iou(record['segmentation'], unique_record['segmentation']) > 0.8:
                 is_duplicate = True
                 unique_records[idx] = combine_records(record, unique_record)
         
