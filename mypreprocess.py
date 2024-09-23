@@ -218,6 +218,8 @@ def video_segment(images: torch.Tensor):
         if len(prompt)==0:
             continue
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
+        for id, mask in zip(object_ids, masks, strict=True):
+            torchvision.utils.save_image((images[current_frame]*(mask>0).unsqueeze(-1)).permute(2,0,1), os.path.join(save_path, 'temp', f'{current_frame}_{id}.jpg'))
         ids = entities.add_entities(current_frame, object_ids, masks, prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
@@ -237,8 +239,6 @@ def video_segment(images: torch.Tensor):
     with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
         pickle.dump(segments, sf)
         pickle.dump(entities, ef)
-    for id, entity in tqdm(enumerate(entities.container), desc='save entity images'):
-        torchvision.utils.save_image((images[entity['prompt_frame']]*entity['mask'].unsqueeze(-1)).permute(2,0,1), os.path.join(save_path, 'temp', f'{entity['prompt_frame']}_{id}.jpg'))
     return segments, entities
 
 def get_bbox(mask: torch.Tensor):
@@ -273,7 +273,7 @@ def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entiti
         mask = smap == id
         entity_image = get_entity_image(images[entity['prompt_frame']], entity['mask']>0)
         semantic = clip.encode_image((entity_image.permute(2, 0, 1)).unsqueeze(0))
-        semantics.append(semantic)
+        semantics.append(semantic.cpu())
     semantics = torch.stack(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
     torch.save(semantics, os.path.join(save_path, 'semantics.pt'))
