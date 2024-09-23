@@ -250,7 +250,8 @@ def video_segment(images: torch.Tensor):
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
-        torchvision.utils.save_image([(images[current_frame]*(smap>=0).unsqueeze(-1)).permute(2,0,1)/255 for smap in segments.smaps], os.path.join(save_path, 'frame', f'{str(current_frame).rjust(5,'0')}.jpg'))
+        for idx, img in [(images[current_frame]*(smap>=0).unsqueeze(-1)).permute(2,0,1)/255 for smap in segments.smaps]:
+            torchvision.utils.save_image(img, os.path.join(save_path, 'frame', f'{current_frame}_{idx}.jpg'))
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
     with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
         pickle.dump(segments, sf)
