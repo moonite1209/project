@@ -220,6 +220,13 @@ def get_prompt_bbox(image: torch.Tensor):
     ret= [record['bbox'] for record in records if prompt_filter_bbox(record)]
     return ret
 
+def mask_or(*masks):
+    masks = [m>0 for m in masks]
+    ret=torch.zeros_like(masks[0])
+    for m in masks:
+        ret=ret|m
+    return ret
+
 def video_segment(images: torch.Tensor):
     global image_path, mask_generator, predictor, state
     segments = Segments(len(images), images.shape[1], images.shape[2])
@@ -233,8 +240,6 @@ def video_segment(images: torch.Tensor):
         if len(prompt)==0:
             continue
         frame_idx, object_ids, masks = get_entities(current_frame, prompt)
-        for id, mask in zip(object_ids, masks, strict=True):
-            torchvision.utils.save_image((images[current_frame]*(mask>0).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{id}.jpg'))
         ids = entities.add_entities(current_frame, object_ids, masks, prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
@@ -245,13 +250,13 @@ def video_segment(images: torch.Tensor):
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
                 masks = masks.squeeze(1)
                 segments.add_masks(frame_idx, object_ids, masks)
+                torchvision.utils.save_image((images[current_frame]*mask_or(masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
                 masks = masks.squeeze(1)
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
-        for idx, img in enumerate([(images[current_frame]*(smap>=0).unsqueeze(-1)).permute(2,0,1)/255 for smap in segments.smaps]):
-            torchvision.utils.save_image(img, os.path.join(save_path, 'frame', f'{current_frame}_{idx}.jpg'))
+                torchvision.utils.save_image((images[current_frame]*mask_or(masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
     with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
         pickle.dump(segments, sf)
