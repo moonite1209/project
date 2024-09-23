@@ -196,7 +196,7 @@ def get_entities(frame_idx, prompt):
     return frame_index, object_ids, masks
 
 def prompt_filter(mask):
-    mask=mask['segmentation']>0
+    mask=mask['segmentation']
     x = np.zeros_like(mask)
     x[0, ...] = True
     x[-1, ...] = True
@@ -212,7 +212,7 @@ def get_prompt(image: torch.Tensor):
 
 def combine_records(record1, record2):
     return {
-        'segmentation': record1['segmentation']>0|record2['segmentation']>0
+        'segmentation': record1['segmentation']|record2['segmentation']
     }
 
 def remove_duplicate_prompt(records:list):
