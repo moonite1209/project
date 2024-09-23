@@ -131,7 +131,8 @@ class Segments:
         for i, mask in enumerate(masks):
             if duplicate(smap, mask)>0.8:
                 prompt[i]=None
-        return [p for p in prompt if p!=None]
+        ret = [p for p in prompt if p!=None]
+        print(f'remove {len(prompt)-len(ret)} at {frame_idx}')
     
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
@@ -204,6 +205,19 @@ def get_prompt(image: torch.Tensor):
     masks=mask_generator.generate(image.cpu().numpy())
     return [torch.from_numpy(mask['segmentation']) for mask in masks if prompt_filter(mask)]
 
+def prompt_filter_bbox(record):
+    bbox=record['bbox']
+    x,y,w,h = bbox
+    image_width, image_height = record['segmentation'].shape
+    if x!=0 and y!=0 and x+w!=image_width and y+h!=image_height:
+        return True
+    return False
+
+def get_prompt_bbox(image: torch.Tensor):
+    global mask_generator
+    records=mask_generator.generate(image.cpu().numpy())
+    ret= [record['bbox'] for record in records if prompt_filter_bbox(record)]
+    return ret
 
 def video_segment(images: torch.Tensor):
     global image_path, mask_generator, predictor, state
@@ -235,6 +249,7 @@ def video_segment(images: torch.Tensor):
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
+        torchvision.utils.save_image([(images[current_frame]*(smap>=0)).permute(2,0,1) for smap in segments.smaps], os.path.join(save_path, 'frame', f'{str(current_frame).rjust(5,'0')}.jpg'))
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
     with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
         pickle.dump(segments, sf)
