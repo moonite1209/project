@@ -138,7 +138,7 @@ class Segments:
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
         for id, mask in zip(object_ids, masks, strict=True):
-            smap[mask>0][smap[mask>0] == -1] = id
+            smap[mask>0] = id
 
 class Entities:
     container: list
@@ -168,10 +168,13 @@ def duplicate(smap, mask):
     mask=mask>0
     return (smap&mask).sum()/mask.sum()
 
-def iou(mask1, mask2):
-    mask1=mask1>=0
-    mask2=mask2>=0
-    return (mask1 & mask2).sum()/(mask1 | mask2).sum()
+def calculate_iou(mask1, mask2):
+    # 计算两个 mask 的交集和并集
+    mask1 = mask1>0
+    mask2 = mask2>0
+    intersection = (mask1 & mask2).sum().item()
+    union = (mask1 | mask2).sum().item()
+    return intersection / union if union > 0 else 0
 
 def save_smap(segments: Segments, entities: Entities):
     colormap = entities.get_colormap()
@@ -203,8 +206,32 @@ def prompt_filter(mask):
 
 def get_prompt(image: torch.Tensor):
     global mask_generator
-    masks=mask_generator.generate(image.cpu().numpy())
-    return [torch.from_numpy(mask['segmentation']) for mask in masks if prompt_filter(mask)]
+    records=mask_generator.generate(image.cpu().numpy())
+    records = remove_duplicate_prompt(records)
+    return [torch.from_numpy(record['segmentation']) for record in records if prompt_filter(record)]
+
+def combine_records(record1, record2):
+    return {
+        'segmentation': record1['segmentation']>0|record2['segmentation']>0
+    }
+
+def remove_duplicate_prompt(records:list):
+    # 存储有效的 mask
+    unique_records = []
+    
+    for i, record in enumerate(records):
+        # 检查当前 mask 是否与 unique_masks 中的任何 mask 重叠
+        is_duplicate = False
+        for idx, unique_record in enumerate(unique_records):
+            if calculate_iou(record, unique_record) > 0.8:
+                is_duplicate = True
+                unique_records[idx] = combine_records(record, unique_record)
+        
+        if not is_duplicate:
+            unique_records.append(record)
+    
+    return unique_records
+
 
 def prompt_filter_bbox(record):
     bbox=record['bbox']
