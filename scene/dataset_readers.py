@@ -12,6 +12,7 @@
 import os
 import sys
 from PIL import Image
+import torch
 from typing import NamedTuple
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
     read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
@@ -68,8 +69,10 @@ def getNerfppNorm(cam_info):
     return {"translate": translate, "radius": radius}
 
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantics_folder):
-    semantics_path = os.path.join(semantics_folder, f"semantics.npy")
-    semantics = np.load(semantics_path)
+    semantics_path = os.path.join(semantics_folder, f"semantics_dim3.pt")
+    semantics = torch.load(semantics_path)
+    raw_semantics_path = os.path.join(semantics_folder, f"semantics.pt")
+    raw_semantics = torch.load(raw_semantics_path)
     cam_infos = []
     for idx, key in enumerate(cam_extrinsics):
         sys.stdout.write('\r')
@@ -154,7 +157,7 @@ def readColmapSceneInfo(path, images, semantics, eval, llffhold=8):
 
     reading_dir = "images" if images == None else images
     # reading_dir_F = "language_feature" if language_feature == None else language_feature
-    cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir), semantics_folder=os.path.join(path, "langauge_feature_dim3" if semantics == None else semantics))
+    cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir), semantics_folder=os.path.join(path, "result" if semantics == None else semantics))
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
 
     if eval:
