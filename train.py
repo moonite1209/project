@@ -99,11 +99,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Loss
         if opt.mode=='langsplat':
             # (3, H, W)    (1, W, H)
-            gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(feature_level=dataset.feature_level)
+            gt_language_feature, language_feature_mask = viewpoint_cam.get_semantic(feature_level=dataset.feature_level)
             Ll1 = l1_loss(language_feature*language_feature_mask, gt_language_feature*language_feature_mask)            
             loss = Ll1
         elif opt.mode=='ours':
-            gt_language_feature, language_feature_mask = viewpoint_cam.get_language_feature(feature_level=dataset.feature_level)
+            gt_language_feature, language_feature_mask = viewpoint_cam.get_semantic(feature_level=dataset.feature_level)
             gt_image = viewpoint_cam.original_image.cuda()
             blending_semantic_loss = l1_loss(blending_language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)
             semantic_loss = l1_loss(language_feature_3d*language_feature_mask, gt_language_feature*language_feature_mask)

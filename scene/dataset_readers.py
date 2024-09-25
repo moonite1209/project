@@ -108,8 +108,8 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantics_f
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
 
-        segment_path = os.path.join(semantics_folder, f"{image_name}.npy")
-        segment = np.load(segment_path)
+        segment_path = os.path.join(semantics_folder, f"{image_name}.pt")
+        segment = torch.load(segment_path)
 
         image = Image.open(image_path)
      
