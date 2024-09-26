@@ -258,7 +258,7 @@ def video_segment(image_names: List[str], images: torch.Tensor):
     global image_path, mask_generator, predictor, state
     segments = Segments(len(images), images.shape[1], images.shape[2])
     entities  =Entities(len(images))
-    for current_frame, image in tqdm(enumerate(images), desc='video_segment'):
+    for current_frame, image_name, image in tqdm(zip(range(len(images)), image_names, images, strict=True), desc='video_segment'):
         prompt = get_prompt(image)
         if len(prompt)==0:
             continue
@@ -277,14 +277,16 @@ def video_segment(image_names: List[str], images: torch.Tensor):
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
                 masks = masks.squeeze(1)
                 segments.add_masks(frame_idx, object_ids, masks)
-                torchvision.utils.save_image((images[frame_idx]*mask_or(*masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
+                # torchvision.utils.save_image((images[frame_idx]*mask_or(*masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
                 masks = masks.squeeze(1)
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
-                torchvision.utils.save_image((images[frame_idx]*mask_or(*masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
+                # torchvision.utils.save_image((images[frame_idx]*mask_or(*masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
+    for image_name, smap in zip(image_names, segments.smaps, strict=True):
+        np.save(smap.cpu().numpy(), os.path.join(save_path, f'{os.path.splitext(image_name)[0]}.npy'))
     with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
         pickle.dump(segments, sf)
         pickle.dump(entities, ef)
@@ -326,6 +328,7 @@ def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entiti
     semantics = torch.stack(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
     torch.save(semantics, os.path.join(save_path, 'semantics.pt'))
+    np.save(semantics.to('cpu', torch.float32).numpy(), os.path.join(save_path, 'semantics.npy'))
 
 
 def seed_everything(seed_value):
@@ -372,12 +375,10 @@ def main() -> None:
         state = predictor.init_state(image_path)
     img_list = []
     WARNED = False
-    images = [os.path.join(image_path, p) for p in os.listdir(image_path)]
-    images.sort()
     image_names = os.listdir(image_path)
     image_names.sort()
-    for image_file in images:
-        image = cv2.imread(image_file)
+    for image_name in image_names:
+        image = cv2.imread(os.path.join(image_path, image_name))
 
         orig_w, orig_h = image.shape[1], image.shape[0]
         if args.resolution == -1:
