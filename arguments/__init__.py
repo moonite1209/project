@@ -50,7 +50,8 @@ class ModelParams(ParamGroup):
         self._source_path = ""
         self._model_path = "" 
         self._language_features_name = "language_features_dim3"
-        self.semantic_folder = "result"
+        self.semantic_folder = "semantic"
+        self.ckpt_folder = "autoencoder"
         self._images = "images"
         self._resolution = -1
         self._white_background = False

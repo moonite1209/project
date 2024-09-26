@@ -20,7 +20,8 @@ def cos_loss(network_output, gt):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_path', '-s', type=str, required=True)
-    parser.add_argument('--segment_folder', type=str, default='result')
+    parser.add_argument('--segment_folder', type=str, default='semantic')
+    parser.add_argument('--save_folder', type=str, default='autoencoder')
     parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--encoder_dims',
@@ -38,12 +39,14 @@ if __name__ == '__main__':
     dataset_path = args.dataset_path
     num_epochs = args.num_epochs
     data_dir = os.path.join(args.dataset_path, args.segment_folder)
+    output_dir = os.path.join(args.dataset_path, args.save_folder)
+    os.makedirs(output_dir, exist_ok=True)
     train_dataset = Autoencoder_dataset(data_dir)
     train_loader = DataLoader(
         dataset=train_dataset,
         batch_size=64,
         shuffle=True,
-        num_workers=16,
+        num_workers=12,
         drop_last=False
     )
 
@@ -51,7 +54,7 @@ if __name__ == '__main__':
         dataset=train_dataset,
         batch_size=256,
         shuffle=False,
-        num_workers=16,
+        num_workers=12,
         drop_last=False  
     )
     
@@ -101,10 +104,11 @@ if __name__ == '__main__':
             if eval_loss < best_eval_loss:
                 best_eval_loss = eval_loss
                 best_epoch = epoch
-                torch.save(model.state_dict(), f'{data_dir}/best_ckpt.pth')
+                print(os.path.join(output_dir,'best_ckpt.pth'))
+                torch.save(model.state_dict(), os.path.join(output_dir,'best_ckpt.pth'))
                 
             if epoch % 10 == 0:
-                torch.save(model.state_dict(), f'{data_dir}/{epoch}_ckpt.pth')
+                torch.save(model.state_dict(), os.path.join(output_dir,f'{epoch}_ckpt.pth'))
             
     print(f"best_epoch: {best_epoch}")
     print("best_loss: {:.8f}".format(best_eval_loss))

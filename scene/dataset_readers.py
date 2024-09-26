@@ -12,7 +12,6 @@
 import os
 import sys
 from PIL import Image
-import torch
 from typing import NamedTuple
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
     read_extrinsics_binary, read_intrinsics_binary, read_points3D_binary, read_points3D_text
@@ -69,10 +68,10 @@ def getNerfppNorm(cam_info):
     return {"translate": translate, "radius": radius}
 
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantics_folder):
-    semantics_path = os.path.join(semantics_folder, f"semantics_dim3.pt")
-    semantics = torch.load(semantics_path)
-    raw_semantics_path = os.path.join(semantics_folder, f"semantics.pt")
-    raw_semantics = torch.load(raw_semantics_path)
+    semantics_path = os.path.join(semantics_folder, f"semantics.npy")
+    semantics = np.load(semantics_path)
+    raw_semantics_path = os.path.join(semantics_folder, f"raw_semantics.npy")
+    raw_semantics = np.load(raw_semantics_path)
     cam_infos = []
     for idx, key in enumerate(cam_extrinsics):
         sys.stdout.write('\r')
@@ -108,8 +107,8 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, semantics_f
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
 
-        segment_path = os.path.join(semantics_folder, f"{image_name}.pt")
-        segment = torch.load(segment_path)
+        segment_path = os.path.join(semantics_folder, f"{image_name}.npy")
+        segment = np.load(segment_path)
 
         image = Image.open(image_path)
      

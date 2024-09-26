@@ -85,7 +85,9 @@ class Camera(nn.Module):
         return point_feature.cuda(), mask.cuda()
     
     def get_semantic(self, feature_level = 3):
-        return self.semantic[self.segment], self.segment!=-1
+        segment = torch.from_numpy(self.segment)
+        semantic = torch.from_numpy(self.semantic)
+        return semantic[segment].cuda(), (segment!=-1).cuda()
     
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):

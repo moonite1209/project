@@ -11,7 +11,8 @@ from model import Autoencoder
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_path', '-s', type=str, required=True)
-    parser.add_argument('--segment_folder', type=str, default='result')
+    parser.add_argument('--segment_folder', type=str, default='semantic')
+    parser.add_argument('--ckpt_folder', type=str, default='autoencoder')
     parser.add_argument('--encoder_dims',
                     nargs = '+',
                     type=int,
@@ -27,10 +28,10 @@ if __name__ == '__main__':
     encoder_hidden_dims = args.encoder_dims
     decoder_hidden_dims = args.decoder_dims
     dataset_path = args.dataset_path
-    ckpt_path = f"{dataset_path}/{args.segment_folder}/best_ckpt.pth"
+    ckpt_path = os.path.join(dataset_path, args.ckpt_folder, 'best_ckpt.pth')
 
-    data_dir = f"{dataset_path}/{args.segment_folder}"
-    output_dir = f"{dataset_path}/{args.segment_folder}"
+    data_dir = os.path.join(dataset_path, args.segment_folder)
+    output_dir = os.path.join(dataset_path, args.segment_folder)
     os.makedirs(output_dir, exist_ok=True)
     
     checkpoint = torch.load(ckpt_path)
@@ -50,14 +51,12 @@ if __name__ == '__main__':
     model.load_state_dict(checkpoint)
     model.eval()
 
+    features=[]
     for idx, feature in tqdm(enumerate(test_loader)):
         data = feature.to("cuda:0")
         with torch.no_grad():
             outputs = model.encode(data)
-        if idx == 0:
-            features = outputs
-        else:
-            features = torch.concatenate((features, outputs))
+        features.append(outputs)
 
     os.makedirs(output_dir, exist_ok=True)
-    torch.save(features, f'{output_dir}/semantics_dim3.pt')
+    np.save(f'{output_dir}/semantics.npy', torch.cat(features).detach().cpu().numpy())

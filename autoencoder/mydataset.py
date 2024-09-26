@@ -6,14 +6,12 @@ from torch.utils.data import Dataset
 
 class Autoencoder_dataset(Dataset):
     def __init__(self, data_dir):
-        data_names = glob.glob(os.path.join(data_dir, '*f.npy'))
-        semantics_path=os.path.join(data_dir, 'semantics.pt')
-        self.data: torch.Tensor = torch.load(semantics_path, weights_only=True).squeeze(1)
+        semantics_path=os.path.join(data_dir, 'raw_semantics.npy')
+        self.data: torch.Tensor = torch.from_numpy(np.load(semantics_path)).squeeze(1)
         self.data = self.data.to(torch.float32)
 
     def __getitem__(self, index):
-        data = torch.tensor(self.data[index])
-        return data
+        return self.data[index].clone().detach()
 
     def __len__(self):
         return self.data.shape[0] 
