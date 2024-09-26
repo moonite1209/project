@@ -286,7 +286,7 @@ def video_segment(image_names: List[str], images: torch.Tensor):
                 # torchvision.utils.save_image((images[frame_idx]*mask_or(*masks).unsqueeze(-1)).permute(2,0,1)/255, os.path.join(save_path, 'temp', f'{current_frame}_{frame_idx}.jpg'))
     torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
     for image_name, smap in zip(image_names, segments.smaps, strict=True):
-        np.save(os.path.join(save_path, f'{os.path.splitext(image_name)[0]}.npy'), smap.cpu().numpy())
+        np.save(os.path.join(save_path, f'{os.path.splitext(image_name)[0]}.npy'), smap.cpu().detach().numpy())
     with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
         pickle.dump(segments, sf)
         pickle.dump(entities, ef)
@@ -328,7 +328,7 @@ def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entiti
     semantics = torch.stack(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
     torch.save(semantics, os.path.join(save_path, 'semantics.pt'))
-    np.save(os.path.join(save_path, 'semantics.npy'), semantics.to('cpu', torch.float32).numpy())
+    np.save(os.path.join(save_path, 'semantics.npy'), semantics.to('cpu', torch.float32).detach().numpy())
 
 
 def seed_everything(seed_value):
