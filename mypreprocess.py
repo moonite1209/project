@@ -254,7 +254,7 @@ def mask_or(*masks):
         ret=ret|m
     return ret
 
-def video_segment(images: torch.Tensor):
+def video_segment(image_names: List[str], images: torch.Tensor):
     global image_path, mask_generator, predictor, state
     segments = Segments(len(images), images.shape[1], images.shape[2])
     entities  =Entities(len(images))
@@ -374,6 +374,8 @@ def main() -> None:
     WARNED = False
     images = [os.path.join(image_path, p) for p in os.listdir(image_path)]
     images.sort()
+    image_names = os.listdir(image_path)
+    image_names.sort()
     for image_file in images:
         image = cv2.imread(image_file)
 
@@ -400,7 +402,7 @@ def main() -> None:
     images = torch.cat(images).cuda()
 
     os.makedirs(save_path, exist_ok=True)
-    segments, entities = video_segment(images)
+    segments, entities = video_segment(image_names, images)
     del mask_generator, predictor, state
     clip = OpenCLIPNetwork(OpenCLIPNetworkConfig)
     extract_semantics(images, segments, entities)
