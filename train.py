@@ -220,8 +220,8 @@ def training_report(tb_writer: SummaryWriter, dataset, iteration, blending_seman
                         tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/render", semantic_map[None]/2+0.5, global_step=iteration)
                         if iteration == testing_iterations[0]:
                             tb_writer.add_images(f"{config['name']}_view_{viewpoint.image_name}/ground_truth", gt_image[None], global_step=iteration)
-                            tb_writer.add_images(f"{config['name']}_blending_semantic_{viewpoint.image_name}/gound_truth", gt_semantic_map[None]/2+0.5, global_step=iteration)
-                            tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/gound_truth", gt_semantic_map[None]/2+0.5, global_step=iteration)
+                            tb_writer.add_images(f"{config['name']}_blending_semantic_{viewpoint.image_name}/gound_truth", (gt_semantic_map*mask)[None]/2+0.5, global_step=iteration)
+                            tb_writer.add_images(f"{config['name']}_semantic_{viewpoint.image_name}/gound_truth", (gt_semantic_map*mask)[None]/2+0.5, global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
                 psnr_test /= len(config['cameras'])
