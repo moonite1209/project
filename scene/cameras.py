@@ -87,7 +87,7 @@ class Camera(nn.Module):
     def get_semantic(self, feature_level = 3):
         segment = torch.from_numpy(self.segment)
         semantic = torch.from_numpy(self.semantic)
-        return semantic[segment].cuda(), (segment!=-1).cuda()
+        return semantic[segment].permute(2,0,1).cuda(), (segment!=-1).cuda()
     
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):

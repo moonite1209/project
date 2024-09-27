@@ -156,7 +156,7 @@ def readColmapSceneInfo(path, images, semantics, eval, llffhold=8):
 
     reading_dir = "images" if images == None else images
     # reading_dir_F = "language_feature" if language_feature == None else language_feature
-    cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir), semantics_folder=os.path.join(path, "result" if semantics == None else semantics))
+    cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir), semantics_folder=os.path.join(path, "semantic" if semantics == None else semantics))
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
 
     if eval:

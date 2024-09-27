@@ -322,11 +322,12 @@ def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entiti
         mask = smap == id
         entity_image = get_entity_image(images[entity['prompt_frame']], entity['mask']>0)
         semantic = clip.encode_image((entity_image.permute(2, 0, 1)).unsqueeze(0))
+        semantic /=semantic.norm(dim=-1, keepdim=True)
         semantics.append(semantic.cpu())
-    semantics = torch.stack(semantics)
+    semantics = torch.cat(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
-    torch.save(semantics, os.path.join(save_path, 'semantics.pt'))
-    np.save(os.path.join(save_path, 'semantics.npy'), semantics.to('cpu', torch.float32).detach().numpy())
+    torch.save(semantics, os.path.join(save_path, 'raw_semantics.pt'))
+    np.save(os.path.join(save_path, 'raw_semantics.npy'), semantics.to('cpu', torch.float32).detach().numpy())
 
 
 def seed_everything(seed_value):
