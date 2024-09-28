@@ -124,10 +124,10 @@ class Segments:
         self.image_height = image_height
         self.image_width = image_width
         self.cursor = 0
-        self.smaps = [torch.full((image_height, image_width), -1, device='cuda', dtype=torch.int32) for i in range(image_num)]
+        self.smaps = [torch.full((image_height, image_width), -1, device='cpu', dtype=torch.int32) for i in range(image_num)]
         
     def remove_duplicate(self, frame_idx, object_ids, masks, prompt: list):
-        smap = self.smaps[frame_idx]
+        smap = self.smaps[frame_idx].cuda()
         for i, mask in enumerate(masks):
             if duplicate(smap, mask)>0.8:
                 prompt[i]=None
@@ -138,7 +138,7 @@ class Segments:
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
         for id, mask in zip(object_ids, masks, strict=True):
-            smap[mask>0] = id
+            smap[mask.detach().cpu()>0] = id
 
 class Entities:
     container: list
@@ -151,8 +151,8 @@ class Entities:
             object_ids.append(len(self.container))
             self.container.append({
                 'prompt_frame': current_frame,
-                'prompt': prompt[i],
-                'mask': mask
+                'prompt': prompt[i].detach().cpu(),
+                'mask': mask.detach().cpu()
             })
         print(f'add {len(object_ids)} at {current_frame} total {len(self.container)} size {sys.getsizeof(self)}')
         return object_ids
@@ -299,7 +299,7 @@ def get_bbox(mask: torch.Tensor):
     return minx, miny, maxx-minx+1, maxy-miny+1
 
 def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
-    image = image.clone().cuda()
+    image = image.clone()
     # crop by bbox
     x,y,h,w = get_bbox(mask)
     image[~mask] = torch.zeros(3, dtype=torch.uint8) #分割区域外为白色
@@ -321,13 +321,13 @@ def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entiti
         smap = segments.smaps[entity['prompt_frame']]
         mask = smap == id
         entity_image = get_entity_image(images[entity['prompt_frame']], entity['mask']>0)
-        semantic = clip.encode_image((entity_image.permute(2, 0, 1)).unsqueeze(0))
+        semantic = clip.encode_image((entity_image.cuda().permute(2, 0, 1)).unsqueeze(0))
         semantic /=semantic.norm(dim=-1, keepdim=True)
-        semantics.append(semantic.cpu())
+        semantics.append(semantic.detach().cpu())
     semantics = torch.cat(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
     torch.save(semantics, os.path.join(save_path, 'raw_semantics.pt'))
-    np.save(os.path.join(save_path, 'raw_semantics.npy'), semantics.to('cpu', torch.float32).detach().numpy())
+    np.save(os.path.join(save_path, 'raw_semantics.npy'), semantics.to('cpu', torch.float32).numpy())
 
 
 def seed_everything(seed_value):
