@@ -140,6 +140,11 @@ class Segments:
         for id, mask in zip(object_ids, masks, strict=True):
             smap[mask.detach().cpu()>0] = id
 
+    def cpu(self):
+        self.smaps = [smap.detach().cpu() for smap in self.smaps]
+
+    def cuda(self):
+        self.smaps = [smap.cuda() for smap in self.smaps]
 class Entities:
     container: list
     def __init__(self, iamge_num) -> None:
@@ -161,6 +166,20 @@ class Entities:
         colormap=[torch.rand(3) for i in range(len(self.container))]
         colormap.append(torch.zeros(3))
         return torch.stack(colormap).cuda()
+    
+    def cpu(self):
+        self.container = [{
+            'prompt_frame': entity['prompt_frame'],
+            'prompt': entity['prompt'].detach().cpu(),
+            'mask': entity['mask'].detach().cpu()
+        } for entity in self.container]
+
+    def cuda(self):
+        self.container = [{
+            'prompt_frame': entity['prompt_frame'],
+            'prompt': entity['prompt'].cuda(),
+            'mask': entity['mask'].cuda()
+        } for entity in self.container]
 
 
 def duplicate(smap, mask):
@@ -349,6 +368,7 @@ def prepare_args():
     parser.add_argument('--image_folder', type=str, default='input')
     parser.add_argument('--save_folder', type=str, default='semantic')
     parser.add_argument('--sam_path', type=str, default="facebook/sam2-hiera-large")
+    parser.add_argument('--flag', action='store_true')
     torch.set_default_dtype(torch.float32)
     return parser.parse_args()
 
@@ -402,7 +422,11 @@ def main() -> None:
     images = torch.cat(images).cuda()
 
     os.makedirs(save_path, exist_ok=True)
-    segments, entities = video_segment(image_names, images)
+    if args.flag:
+        segments = pickle.load(os.path.join(save_path, 'segments.pk'))
+        entities = pickle.load(os.path.join(save_path, 'entities.pk'))
+    else:
+        segments, entities = video_segment(image_names, images)
     del mask_generator, predictor, state
     clip = OpenCLIPNetwork(OpenCLIPNetworkConfig)
     extract_semantics(images, segments, entities)
