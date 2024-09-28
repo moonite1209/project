@@ -423,8 +423,9 @@ def main() -> None:
 
     os.makedirs(save_path, exist_ok=True)
     if args.flag:
-        segments = pickle.load(os.path.join(save_path, 'segments.pk'))
-        entities = pickle.load(os.path.join(save_path, 'entities.pk'))
+        with open(os.path.join(save_path, 'segments.pk'), 'rb') as sf, open(os.path.join(save_path, 'entities.pk'), 'rb') as ef:
+            segments = pickle.load(sf)
+            entities = pickle.load(ef)
     else:
         segments, entities = video_segment(image_names, images)
     del mask_generator, predictor, state
