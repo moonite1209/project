@@ -26,10 +26,6 @@ import open_clip
 
 image_path = None
 save_path = None
-mask_generator = None
-predictor = None
-clip = None
-state = None
 device = torch.device('cuda:0')
 tb_writer = None
 
@@ -55,23 +51,23 @@ class OpenCLIPNetwork(nn.Module):
                 ),
             ]
         )
-        model, _, _ = open_clip.create_model_and_transforms(
+        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
             self.config.clip_model_type,  # e.g., ViT-B-16
             pretrained=self.config.clip_model_pretrained,  # e.g., laion2b_s34b_b88k
-            precision="fp16",
+            device='cuda',
+            precision='fp16'
         )
-        model.eval()
+        self.model.eval()
         self.tokenizer = open_clip.get_tokenizer(self.config.clip_model_type)
-        self.model = model.to("cuda")
         self.clip_n_dims = self.config.clip_n_dims
 
         self.positives = self.config.positives    
         self.negatives = self.config.negatives
         with torch.no_grad():
             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
-            self.pos_embeds = model.encode_text(tok_phrases)
+            self.pos_embeds = self.model.encode_text(tok_phrases)
             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.negatives]).to("cuda")
-            self.neg_embeds = model.encode_text(tok_phrases)
+            self.neg_embeds = self.model.encode_text(tok_phrases)
         self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
         self.neg_embeds /= self.neg_embeds.norm(dim=-1, keepdim=True)
 
@@ -118,33 +114,28 @@ class OpenCLIPNetwork(nn.Module):
         return self.model.encode_image(processed_input)
 
 class Segments:
-    smaps: list
+    smaps: List[np.ndarray]
     def __init__(self, image_num, image_height, image_width) -> None:
         self.image_num = image_num
         self.image_height = image_height
         self.image_width = image_width
         self.cursor = 0
-        self.smaps = [torch.full((image_height, image_width), -1, device='cpu', dtype=torch.int32) for i in range(image_num)]
+        self.smaps = [np.full((image_height, image_width), -1, dtype=np.int32) for i in range(image_num)]
         
     def remove_duplicate(self, frame_idx, object_ids, masks, prompt: list):
-        smap = self.smaps[frame_idx].cuda()
+        smap = self.smaps[frame_idx]
+        ret = []
         for i, mask in enumerate(masks):
-            if duplicate(smap, mask)>0.8:
-                prompt[i]=None
-        ret = [p for p in prompt if p!=None]
+            if duplicate(smap, mask)<0.8:
+                ret.append(prompt[i])
         print(f'remove {len(prompt)-len(ret)} at {frame_idx}')
         return ret
     
     def add_masks(self, frame_idx, object_ids, masks):
         smap=self.smaps[frame_idx]
         for id, mask in zip(object_ids, masks, strict=True):
-            smap[mask.detach().cpu()>0] = id
+            smap[mask] = id
 
-    def cpu(self):
-        self.smaps = [smap.detach().cpu() for smap in self.smaps]
-
-    def cuda(self):
-        self.smaps = [smap.cuda() for smap in self.smaps]
 class Entities:
     container: list
     def __init__(self, iamge_num) -> None:
@@ -156,8 +147,8 @@ class Entities:
             object_ids.append(len(self.container))
             self.container.append({
                 'prompt_frame': current_frame,
-                'prompt': prompt[i].detach().cpu(),
-                'mask': mask.detach().cpu()
+                'prompt': prompt[i],
+                'mask': mask
             })
         print(f'add {len(object_ids)} at {current_frame} total {len(self.container)} size {sys.getsizeof(self)}')
         return object_ids
@@ -167,21 +158,6 @@ class Entities:
         colormap.append(torch.zeros(3))
         return torch.stack(colormap).cuda()
     
-    def cpu(self):
-        self.container = [{
-            'prompt_frame': entity['prompt_frame'],
-            'prompt': entity['prompt'].detach().cpu(),
-            'mask': entity['mask'].detach().cpu()
-        } for entity in self.container]
-
-    def cuda(self):
-        self.container = [{
-            'prompt_frame': entity['prompt_frame'],
-            'prompt': entity['prompt'].cuda(),
-            'mask': entity['mask'].cuda()
-        } for entity in self.container]
-
-
 def duplicate(smap, mask):
     smap=smap>=0
     mask=mask>0
@@ -201,15 +177,14 @@ def save_smap(segments: Segments, entities: Entities):
         fmap=colormap[smap]
         torchvision.utils.save_image(fmap.permute(2,0,1), os.path.join(save_path, f'{str(i).rjust(5,'0')}.jpg'))
 
-def get_entities(frame_idx, prompt):
-    global image_path, predictor, state
+def get_entities(predictor: SAM2VideoPredictor, state, frame_idx, prompt):
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
         # state = predictor.init_state(image_path)
         predictor.reset_state(state)
         for id, p in enumerate(prompt):
             predictor.add_new_mask(state, frame_idx, id, p)
         for frame_index, object_ids, masks in predictor.propagate_in_video(state): # masks: (n, 1, h, w)
-            masks = masks.squeeze(1)
+            masks = (masks.squeeze(1)>0).clone().detach().cpu().numpy()
             if frame_index == frame_idx:
                 break
     return frame_index, object_ids, masks
@@ -223,11 +198,10 @@ def prompt_filter(mask):
     x[..., -1] = True
     return ~np.any(mask & x)
 
-def get_prompt(image: torch.Tensor):
-    global mask_generator
-    records=mask_generator.generate(image.cpu().numpy())
+def get_prompt(mask_generator: SAM2AutomaticMaskGenerator, image: np.ndarray):
+    records=mask_generator.generate(image) # 2.5G
     records = remove_duplicate_prompt(records)
-    return [torch.from_numpy(record['segmentation']) for record in records if prompt_filter(record)]
+    return [record['segmentation'] for record in records if prompt_filter(record)]
 
 def combine_records(record1, record2):
     return {
@@ -273,20 +247,34 @@ def mask_or(*masks):
         ret=ret|m
     return ret
 
-def video_segment(image_names: List[str], images: torch.Tensor):
-    global image_path, mask_generator, predictor, state
+def video_segment(image_names: List[str], images: np.ndarray):
+    global image_path, save_path, args
+
+    mask_generator = SAM2AutomaticMaskGenerator.from_pretrained(args.sam_path, 
+                                                                # points_per_side=32,
+                                                                # pred_iou_thresh=0.7,
+                                                                # box_nms_thresh=0.7,
+                                                                # stability_score_thresh=0.85,
+                                                                # crop_n_layers=1,
+                                                                # crop_n_points_downscale_factor=1,
+                                                                min_mask_region_area=100
+                                                                ) # 1G
+    predictor = SAM2VideoPredictor.from_pretrained(args.sam_path) #1G
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
+        state = predictor.init_state(image_path) # 3G
+
     segments = Segments(len(images), images.shape[1], images.shape[2])
     entities  =Entities(len(images))
     for current_frame, image_name, image in tqdm(zip(range(len(images)), image_names, images, strict=True), desc='video_segment'):
-        prompt = get_prompt(image)
+        prompt = get_prompt(mask_generator, image)
         if len(prompt)==0:
             continue
-        frame_idx, object_ids, masks = get_entities(current_frame, prompt)
+        frame_idx, object_ids, masks = get_entities(predictor, state, current_frame, prompt)
         prompt = segments.remove_duplicate(frame_idx, object_ids, masks, prompt)
         if len(prompt)==0:
             continue
-        frame_idx, object_ids, masks = get_entities(current_frame, prompt)
-        ids = entities.add_entities(current_frame, object_ids, masks, prompt)
+        frame_idx, object_ids, masks = get_entities(predictor, state, current_frame, prompt)
+        ids = entities.add_entities(frame_idx, object_ids, masks, prompt)
 
         with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
             # state = predictor.init_state(image_path)
@@ -294,22 +282,39 @@ def video_segment(image_names: List[str], images: torch.Tensor):
             for id, p in zip(ids, prompt, strict=True):
                 predictor.add_new_mask(state, current_frame, id, p)
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state):
-                masks = masks.squeeze(1)
+                masks = masks = (masks.squeeze(1)>0).clone().detach().cpu().numpy()
                 segments.add_masks(frame_idx, object_ids, masks)
             for frame_idx, object_ids, masks in predictor.propagate_in_video(state, reverse=True):
-                masks = masks.squeeze(1)
+                masks = masks = (masks.squeeze(1)>0).clone().detach().cpu().numpy()
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
-    torch.save(torch.stack(segments.smaps), os.path.join(save_path, 'segments.pt'))
+        break
+    np.save(os.path.join(save_path, 'segments.npy'), np.stack(segments.smaps))
     for image_name, smap in zip(image_names, segments.smaps, strict=True):
-        np.save(os.path.join(save_path, f'{os.path.splitext(image_name)[0]}.npy'), smap.cpu().detach().numpy())
+        np.save(os.path.join(save_path, f'{os.path.splitext(image_name)[0]}.npy'), smap)
     with open(os.path.join(save_path, 'segments.pk'), 'wb') as sf, open(os.path.join(save_path, 'entities.pk'), 'wb') as ef:
         pickle.dump(segments, sf)
         pickle.dump(entities, ef)
     return segments, entities
 
-def get_bbox(mask: torch.Tensor):
+def get_bbox(mask: np.ndarray):
+     # 查找掩码中的 True 元素的索引
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    
+    # 如果没有 True 元素，则返回全零的边界框
+    if not np.any(rows) or not np.any(cols):
+        return (0, 0, 0, 0)
+    
+    # 获取边界框的上下左右边界
+    x_min, x_max = np.where(rows)[0][[0, -1]] # h
+    y_min, y_max = np.where(cols)[0][[0, -1]] # w
+    
+    # 返回边界框
+    return (x_min, y_min, x_max + 1 - x_min, y_max + 1 - y_min) # x, y, h, w
+
+    mask = torch.from_numpy(mask)
     coord = mask.argwhere()
     value, indices = coord.min(dim=0)
     minx, miny = value
@@ -317,36 +322,37 @@ def get_bbox(mask: torch.Tensor):
     maxx, maxy = value
     return minx, miny, maxx-minx+1, maxy-miny+1
 
-def get_entity_image(image: torch.Tensor, mask: torch.Tensor):
-    image = image.clone()
+def get_entity_image(image: np.ndarray, mask: np.ndarray):
+    image = image.copy()
     # crop by bbox
     x,y,h,w = get_bbox(mask)
-    image[~mask] = torch.zeros(3, dtype=torch.uint8) #分割区域外为白色
+    image[~mask] = np.zeros(3, dtype=np.uint8) #分割区域外为白色
     image = image[x:x+h, y:y+w, ...] #将img按分割区域bbox裁剪
     # pad to square
     l = max(h,w)
-    paded_img = torch.zeros((l, l, 3), device=device)
+    paded_img = np.zeros((l, l, 3), dtype=np.uint8)
     if h > w:
         paded_img[:,(h-w)//2:(h-w)//2 + w, :] = image
     else:
         paded_img[(w-h)//2:(w-h)//2 + h, :, :] = image
-    paded_img = torch.from_numpy(cv2.resize(paded_img.cpu().numpy(), (224,224))).cuda()
+    paded_img = cv2.resize(paded_img, (224,224))
     return paded_img
 
-def extract_semantics(images: torch.Tensor, segments: Segments, entities: Entities):
-    global save_path, image_path, mask_generator, predictor, clip, state
+def extract_semantics(images: np.ndarray, segments: Segments, entities: Entities):
+    global save_path, image_path, args
+    clip = OpenCLIPNetwork(OpenCLIPNetworkConfig)
     semantics=[]
     for id, entity in tqdm(enumerate(entities.container), desc='extract semantics'):
         smap = segments.smaps[entity['prompt_frame']]
         mask = smap == id
-        entity_image = get_entity_image(images[entity['prompt_frame']], entity['mask']>0)
-        semantic = clip.encode_image((entity_image.cuda().permute(2, 0, 1)).unsqueeze(0))
+        entity_image = get_entity_image(images[entity['prompt_frame']], entity['mask'])
+        with torch.no_grad():
+            semantic = clip.encode_image((torch.from_numpy(entity_image).cuda().permute(2, 0, 1)/255).unsqueeze(0))
         semantic /=semantic.norm(dim=-1, keepdim=True)
-        semantics.append(semantic.detach().cpu())
-    semantics = torch.cat(semantics)
+        semantics.append(semantic.clone().detach().cpu().numpy())
+    semantics = np.concatenate(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
-    torch.save(semantics, os.path.join(save_path, 'raw_semantics.pt'))
-    np.save(os.path.join(save_path, 'raw_semantics.npy'), semantics.to('cpu', torch.float32).numpy())
+    np.save(os.path.join(save_path, 'raw_semantics.npy'), semantics)
 
 
 def seed_everything(seed_value):
@@ -373,25 +379,12 @@ def prepare_args():
     return parser.parse_args()
 
 def main() -> None:
-    global save_path, image_path, mask_generator, predictor, clip, state, tb_writer
+    global save_path, image_path, args, tb_writer
     seed_everything(42)
     torch.set_default_device(device)
     args = prepare_args()
     image_path = os.path.join(args.dataset_path, args.image_folder)
     save_path = os.path.join(args.dataset_path, args.save_folder)
-    mask_generator = SAM2AutomaticMaskGenerator.from_pretrained(args.sam_path, 
-                                                                # points_per_side=32,
-                                                                # pred_iou_thresh=0.7,
-                                                                # box_nms_thresh=0.7,
-                                                                # stability_score_thresh=0.85,
-                                                                # crop_n_layers=1,
-                                                                # crop_n_points_downscale_factor=1,
-                                                                min_mask_region_area=100
-                                                                )
-    predictor = SAM2VideoPredictor.from_pretrained(args.sam_path)
-    tb_writer = SummaryWriter(save_path)
-    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
-        state = predictor.init_state(image_path)
     img_list = []
     WARNED = False
     image_names = os.listdir(image_path)
@@ -416,10 +409,11 @@ def main() -> None:
         resolution = (int( orig_w  / scale), int(orig_h / scale))
         
         image = cv2.resize(image, resolution)
-        image = torch.from_numpy(image)
+        # image = torch.from_numpy(image)
         img_list.append(image)
-    images = [img[None, ...] for img in img_list]
-    images = torch.cat(images).cuda()
+    # images = [img[None, ...] for img in img_list]
+    # images = torch.cat(images).cuda() # 0.5G
+    images = np.stack(img_list)
 
     os.makedirs(save_path, exist_ok=True)
     if args.flag:
@@ -428,8 +422,7 @@ def main() -> None:
             entities = pickle.load(ef)
     else:
         segments, entities = video_segment(image_names, images)
-    del mask_generator, predictor, state
-    clip = OpenCLIPNetwork(OpenCLIPNetworkConfig)
+
     extract_semantics(images, segments, entities)
 
 if __name__  == '__main__':
