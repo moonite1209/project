@@ -313,14 +313,6 @@ def get_bbox(mask: np.ndarray):
     # 返回边界框
     return (x_min, y_min, x_max + 1 - x_min, y_max + 1 - y_min) # x, y, h, w
 
-    mask = torch.from_numpy(mask)
-    coord = mask.argwhere()
-    value, indices = coord.min(dim=0)
-    minx, miny = value
-    value, indices = coord.max(dim=0)
-    maxx, maxy = value
-    return minx, miny, maxx-minx+1, maxy-miny+1
-
 def get_entity_image(image: np.ndarray, mask: np.ndarray):
     image = image.copy()
     # crop by bbox
@@ -391,23 +383,23 @@ def main() -> None:
     for image_name in image_names:
         image = cv2.imread(os.path.join(image_path, image_name))
 
-        orig_w, orig_h = image.shape[1], image.shape[0]
-        if args.resolution == -1:
-            if orig_h > 1080:
-                if not WARNED:
-                    print("[ INFO ] Encountered quite large input images (>1080P), rescaling to 1080P.\n "
-                        "If this is not desired, please explicitly specify '--resolution/-r' as 1")
-                    WARNED = True
-                global_down = orig_h / 1080
-            else:
-                global_down = 1
-        else:
-            global_down = orig_w / args.resolution
+        # orig_w, orig_h = image.shape[1], image.shape[0]
+        # if args.resolution == -1:
+        #     if orig_h > 1080:
+        #         if not WARNED:
+        #             print("[ INFO ] Encountered quite large input images (>1080P), rescaling to 1080P.\n "
+        #                 "If this is not desired, please explicitly specify '--resolution/-r' as 1")
+        #             WARNED = True
+        #         global_down = orig_h / 1080
+        #     else:
+        #         global_down = 1
+        # else:
+        #     global_down = orig_w / args.resolution
             
-        scale = float(global_down)
-        resolution = (int( orig_w  / scale), int(orig_h / scale))
+        # scale = float(global_down)
+        # resolution = (int( orig_w  / scale), int(orig_h / scale))
         
-        image = cv2.resize(image, resolution)
+        # image = cv2.resize(image, resolution)
         # image = torch.from_numpy(image)
         img_list.append(image)
     # images = [img[None, ...] for img in img_list]
