@@ -289,7 +289,6 @@ def video_segment(image_names: List[str], images: np.ndarray):
                 if frame_idx == current_frame:
                     continue
                 segments.add_masks(frame_idx, object_ids, masks)
-        break
     np.save(os.path.join(save_path, 'segments.npy'), np.stack(segments.smaps))
     for image_name, smap in zip(image_names, segments.smaps, strict=True):
         np.save(os.path.join(save_path, f'{os.path.splitext(image_name)[0]}.npy'), smap)
