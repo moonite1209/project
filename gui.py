@@ -57,10 +57,10 @@ class CONFIG:
 
     white_background = False
 
-    dataset_name = 'waldo_kitchen'
+    dataset_name = 'lerf_ovs/waldo_kitchen'
     FEATURE_DIM = 32
-    MODEL_PATH = f'./output/ablation/temp/{dataset_name}_3d_3' # 30000
-    ae_ckpt_path = f'./ckpt/{dataset_name}/best_ckpt.pth'
+    MODEL_PATH = f'output/{dataset_name}' # f'./output/ablation/temp/{dataset_name}_3d_3' # 30000
+    ae_ckpt_path = f'data/{dataset_name}/autoencoder/best_ckpt.pth' # f'./ckpt/{dataset_name}/best_ckpt.pth'
     save_path = './edit_output'
     encoder_dims = [256, 128, 64, 32, 3]
     decoder_dims = [16, 32, 64, 128, 256, 256, 512]
@@ -315,7 +315,7 @@ class GaussianSplattingGUI:
             # dpg.add_button(label="render_option", tag="_button_depth",
                             # callback=callback_depth)
             dpg.add_text("\nRender option: ", tag="render")
-            dpg.add_radio_button(('RGB', 'Semantic'), callback=lambda sender, app_data: setattr(self,'render_mode', app_data.lower()), default_value='RGB')
+            dpg.add_radio_button(('RGB', 'Semantic', 'Overlay'), callback=lambda sender, app_data: setattr(self,'render_mode', app_data.lower()), default_value='RGB')
             
             dpg.add_text("\nEdit option: ", tag="edit")
             dpg.add_input_text(label="query", tag="_query")
@@ -468,6 +468,9 @@ class GaussianSplattingGUI:
             render_num += 1
         if self.render_mode == 'semantic':
             self.render_buffer = sem_transed_rgb.cpu().numpy().reshape(-1)
+            render_num += 1
+        if self.render_mode == 'overlay':
+            self.render_buffer = 0.6*sem_transed_rgb.cpu().numpy().reshape(-1) + 0.4*rgb_score.cpu().numpy().reshape(-1)
             render_num += 1
         self.render_buffer /= render_num
 

@@ -234,9 +234,8 @@ def prompt_filter_bbox(record):
         return True
     return False
 
-def get_prompt_bbox(image: torch.Tensor):
-    global mask_generator
-    records=mask_generator.generate(image.cpu().numpy())
+def get_prompt_bbox(mask_generator, image: np.ndarray):
+    records=mask_generator.generate(image)
     ret= [record['bbox'] for record in records if prompt_filter_bbox(record)]
     return ret
 
@@ -255,7 +254,7 @@ def video_segment(image_names: List[str], images: np.ndarray):
                                                                 # pred_iou_thresh=0.7,
                                                                 # box_nms_thresh=0.7,
                                                                 # stability_score_thresh=0.85,
-                                                                # crop_n_layers=1,
+                                                                crop_n_layers=1,
                                                                 # crop_n_points_downscale_factor=1,
                                                                 min_mask_region_area=100
                                                                 ) # 1G
