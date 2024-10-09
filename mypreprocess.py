@@ -23,95 +23,96 @@ from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 import cv2
 from tqdm import tqdm
 import open_clip
+from eval.openclip_encoder import OpenCLIPNetwork
 
 image_path = None
 save_path = None
 device = torch.device('cuda:0')
 tb_writer = None
 
-@dataclass
-class OpenCLIPNetworkConfig:
-    _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
-    clip_model_type: str = "ViT-B-16"
-    clip_model_pretrained: str = "laion2b_s34b_b88k"
-    clip_n_dims: int = 512
-    negatives: Tuple[str] = ("object", "things", "stuff", "texture")
-    positives: Tuple[str] = ("",)
+# @dataclass
+# class OpenCLIPNetworkConfig:
+#     _target: Type = field(default_factory=lambda: OpenCLIPNetwork)
+#     clip_model_type: str = "ViT-B-16"
+#     clip_model_pretrained: str = "laion2b_s34b_b88k"
+#     clip_n_dims: int = 512
+#     negatives: Tuple[str] = ("object", "things", "stuff", "texture")
+#     positives: Tuple[str] = ("",)
 
-class OpenCLIPNetwork(nn.Module):
-    def __init__(self, config: OpenCLIPNetworkConfig):
-        super().__init__()
-        self.config = config
-        self.process = torchvision.transforms.Compose(
-            [
-                torchvision.transforms.Resize((224, 224)),
-                torchvision.transforms.Normalize(
-                    mean=[0.48145466, 0.4578275, 0.40821073],
-                    std=[0.26862954, 0.26130258, 0.27577711],
-                ),
-            ]
-        )
-        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
-            self.config.clip_model_type,  # e.g., ViT-B-16
-            pretrained=self.config.clip_model_pretrained,  # e.g., laion2b_s34b_b88k
-            device='cuda',
-            precision='fp16'
-        )
-        self.model.eval()
-        self.tokenizer = open_clip.get_tokenizer(self.config.clip_model_type)
-        self.clip_n_dims = self.config.clip_n_dims
+# class OpenCLIPNetwork(nn.Module):
+#     def __init__(self, config: OpenCLIPNetworkConfig):
+#         super().__init__()
+#         self.config = config
+#         self.process = torchvision.transforms.Compose(
+#             [
+#                 torchvision.transforms.Resize((224, 224)),
+#                 torchvision.transforms.Normalize(
+#                     mean=[0.48145466, 0.4578275, 0.40821073],
+#                     std=[0.26862954, 0.26130258, 0.27577711],
+#                 ),
+#             ]
+#         )
+#         self.model, _, self.preprocess = open_clip.create_model_and_transforms(
+#             self.config.clip_model_type,  # e.g., ViT-B-16
+#             pretrained=self.config.clip_model_pretrained,  # e.g., laion2b_s34b_b88k
+#             device='cuda',
+#             precision='fp16'
+#         )
+#         self.model.eval()
+#         self.tokenizer = open_clip.get_tokenizer(self.config.clip_model_type)
+#         self.clip_n_dims = self.config.clip_n_dims
 
-        self.positives = self.config.positives    
-        self.negatives = self.config.negatives
-        with torch.no_grad():
-            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
-            self.pos_embeds = self.model.encode_text(tok_phrases)
-            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.negatives]).to("cuda")
-            self.neg_embeds = self.model.encode_text(tok_phrases)
-        self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
-        self.neg_embeds /= self.neg_embeds.norm(dim=-1, keepdim=True)
+#         self.positives = self.config.positives    
+#         self.negatives = self.config.negatives
+#         with torch.no_grad():
+#             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
+#             self.pos_embeds = self.model.encode_text(tok_phrases)
+#             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.negatives]).to("cuda")
+#             self.neg_embeds = self.model.encode_text(tok_phrases)
+#         self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
+#         self.neg_embeds /= self.neg_embeds.norm(dim=-1, keepdim=True)
 
-        assert (
-            self.pos_embeds.shape[1] == self.neg_embeds.shape[1]
-        ), "Positive and negative embeddings must have the same dimensionality"
-        assert (
-            self.pos_embeds.shape[1] == self.clip_n_dims
-        ), "Embedding dimensionality must match the model dimensionality"
+#         assert (
+#             self.pos_embeds.shape[1] == self.neg_embeds.shape[1]
+#         ), "Positive and negative embeddings must have the same dimensionality"
+#         assert (
+#             self.pos_embeds.shape[1] == self.clip_n_dims
+#         ), "Embedding dimensionality must match the model dimensionality"
 
-    @property
-    def name(self) -> str:
-        return "openclip_{}_{}".format(self.config.clip_model_type, self.config.clip_model_pretrained)
+#     @property
+#     def name(self) -> str:
+#         return "openclip_{}_{}".format(self.config.clip_model_type, self.config.clip_model_pretrained)
 
-    @property
-    def embedding_dim(self) -> int:
-        return self.config.clip_n_dims
+#     @property
+#     def embedding_dim(self) -> int:
+#         return self.config.clip_n_dims
     
-    def gui_cb(self,element):
-        self.set_positives(element.value.split(";"))
+#     def gui_cb(self,element):
+#         self.set_positives(element.value.split(";"))
 
-    def set_positives(self, text_list):
-        self.positives = text_list
-        with torch.no_grad():
-            tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
-            self.pos_embeds = self.model.encode_text(tok_phrases)
-        self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
+#     def set_positives(self, text_list):
+#         self.positives = text_list
+#         with torch.no_grad():
+#             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to("cuda")
+#             self.pos_embeds = self.model.encode_text(tok_phrases)
+#         self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
 
-    def get_relevancy(self, embed: torch.Tensor, positive_id: int) -> torch.Tensor:
-        phrases_embeds = torch.cat([self.pos_embeds, self.neg_embeds], dim=0)
-        p = phrases_embeds.to(embed.dtype)  # phrases x 512
-        output = torch.mm(embed, p.T)  # rays x phrases
-        positive_vals = output[..., positive_id : positive_id + 1]  # rays x 1
-        negative_vals = output[..., len(self.positives) :]  # rays x N_phrase
-        repeated_pos = positive_vals.repeat(1, len(self.negatives))  # rays x N_phrase
+#     def get_relevancy(self, embed: torch.Tensor, positive_id: int) -> torch.Tensor:
+#         phrases_embeds = torch.cat([self.pos_embeds, self.neg_embeds], dim=0)
+#         p = phrases_embeds.to(embed.dtype)  # phrases x 512
+#         output = torch.mm(embed, p.T)  # rays x phrases
+#         positive_vals = output[..., positive_id : positive_id + 1]  # rays x 1
+#         negative_vals = output[..., len(self.positives) :]  # rays x N_phrase
+#         repeated_pos = positive_vals.repeat(1, len(self.negatives))  # rays x N_phrase
 
-        sims = torch.stack((repeated_pos, negative_vals), dim=-1)  # rays x N-phrase x 2
-        softmax = torch.softmax(10 * sims, dim=-1)  # rays x n-phrase x 2
-        best_id = softmax[..., 0].argmin(dim=1)  # rays x 2
-        return torch.gather(softmax, 1, best_id[..., None, None].expand(best_id.shape[0], len(self.negatives), 2))[:, 0, :]
+#         sims = torch.stack((repeated_pos, negative_vals), dim=-1)  # rays x N-phrase x 2
+#         softmax = torch.softmax(10 * sims, dim=-1)  # rays x n-phrase x 2
+#         best_id = softmax[..., 0].argmin(dim=1)  # rays x 2
+#         return torch.gather(softmax, 1, best_id[..., None, None].expand(best_id.shape[0], len(self.negatives), 2))[:, 0, :]
 
-    def encode_image(self, input):
-        processed_input = self.process(input).half()
-        return self.model.encode_image(processed_input)
+#     def encode_image(self, input):
+#         processed_input = self.process(input).half()
+#         return self.model.encode_image(processed_input)
 
 class Segments:
     smaps: List[np.ndarray]
@@ -189,14 +190,15 @@ def get_entities(predictor: SAM2VideoPredictor, state, frame_idx, prompt):
                 break
     return frame_index, object_ids, masks
 
-def prompt_filter(mask):
+def prompt_filter(mask: np.ndarray):
     mask=mask['segmentation']
+    area = mask.sum()
     x = np.zeros_like(mask)
     x[0, ...] = True
     x[-1, ...] = True
     x[..., 0] = True
     x[..., -1] = True
-    return ~np.any(mask & x)
+    return (~np.any(mask & x)) or (area/mask.size>0.01)
 
 def get_prompt(mask_generator: SAM2AutomaticMaskGenerator, image: np.ndarray):
     records=mask_generator.generate(image) # 2.5G
@@ -330,7 +332,7 @@ def get_entity_image(image: np.ndarray, mask: np.ndarray):
 
 def extract_semantics(images: np.ndarray, segments: Segments, entities: Entities):
     global save_path, image_path, args
-    clip = OpenCLIPNetwork(OpenCLIPNetworkConfig)
+    clip = OpenCLIPNetwork()
     semantics=[]
     for id, entity in tqdm(enumerate(entities.container), desc='extract semantics'):
         smap = segments.smaps[entity['prompt_frame']]
@@ -339,7 +341,7 @@ def extract_semantics(images: np.ndarray, segments: Segments, entities: Entities
         with torch.no_grad():
             semantic = clip.encode_image((torch.from_numpy(entity_image).cuda().permute(2, 0, 1)/255).unsqueeze(0))
         semantic /=semantic.norm(dim=-1, keepdim=True)
-        semantics.append(semantic.clone().detach().cpu().numpy())
+        semantics.append(semantic.float().clone().detach().cpu().numpy())
     semantics = np.concatenate(semantics)
     # semantics = clip.encode_image(entity_images.permute(0, 3, 1, 2))
     np.save(os.path.join(save_path, 'raw_semantics.npy'), semantics)

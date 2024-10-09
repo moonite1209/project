@@ -6,7 +6,7 @@ import numpy as np
 
 
 class OpenCLIPNetwork:
-    def __init__(self, device):
+    def __init__(self, device='cuda'):
         self.process = torchvision.transforms.Compose(
             [
                 torchvision.transforms.Resize((224, 224)),
@@ -19,23 +19,23 @@ class OpenCLIPNetwork:
         self.clip_model_type = "ViT-B-16"
         self.clip_model_pretrained = 'laion2b_s34b_b88k'
         self.clip_n_dims = 512
-        model, _, _ = open_clip.create_model_and_transforms(
+        self.model, _, _ = open_clip.create_model_and_transforms(
             self.clip_model_type,
             pretrained=self.clip_model_pretrained,
+            device=device,
             precision="fp16",
         )
-        model.eval()
+        self.model.eval()
         
         self.tokenizer = open_clip.get_tokenizer(self.clip_model_type)
-        self.model = model.to(device)
 
         self.negatives = ("object", "things", "stuff", "texture")
         self.positives = (" ",)
         with torch.no_grad():
             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.positives]).to(device)
-            self.pos_embeds = model.encode_text(tok_phrases)
+            self.pos_embeds = self.model.encode_text(tok_phrases)
             tok_phrases = torch.cat([self.tokenizer(phrase) for phrase in self.negatives]).to(device)
-            self.neg_embeds = model.encode_text(tok_phrases)
+            self.neg_embeds = self.model.encode_text(tok_phrases)
         self.pos_embeds /= self.pos_embeds.norm(dim=-1, keepdim=True)
         self.neg_embeds /= self.neg_embeds.norm(dim=-1, keepdim=True)
 
@@ -58,7 +58,7 @@ class OpenCLIPNetwork:
 
     def encode_image(self, input, mask=None):
         processed_input = self.process(input).half()
-        return self.model.encode_image(processed_input, mask=mask)
+        return self.model.encode_image(processed_input)
 
     def encode_text(self, text_list, device):
         text = self.tokenizer(text_list).to(device)

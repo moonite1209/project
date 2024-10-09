@@ -7,8 +7,8 @@ import glob
 import cv2
 
 def main() -> None:
-    input = 'data/drjohnson/semantic'
-    output = 'data/drjohnson/semantic/colormap'
+    input = 'data/lerf_ovs/waldo_kitchen/semantic'
+    output = 'data/lerf_ovs/waldo_kitchen/semantic/colormap'
     os.makedirs(output, exist_ok=True)
     semantics = np.load(os.path.join(input, 'semantics.npy'))
     semantics = (semantics+1)/2

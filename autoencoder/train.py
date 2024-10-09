@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_path', '-s', type=str, required=True)
     parser.add_argument('--segment_folder', type=str, default='semantic')
     parser.add_argument('--save_folder', type=str, default='autoencoder')
-    parser.add_argument('--num_epochs', type=int, default=100)
+    parser.add_argument('--num_epochs', type=int, default=5000)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--encoder_dims',
                     nargs = '+',
@@ -90,7 +90,7 @@ if __name__ == '__main__':
             tb_writer.add_scalar('train_loss/total_loss', loss.item(), global_iter)
             tb_writer.add_histogram("feat", outputs, global_iter)
 
-        if epoch > 95:
+        if epoch > num_epochs-5:
             eval_loss = 0.0
             model.eval()
             for idx, feature in enumerate(test_loader):
