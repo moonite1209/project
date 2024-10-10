@@ -8,7 +8,7 @@ import io
 import pickle
 import argparse
 import sys
-from typing import List, Sequence, Tuple, Type
+from typing import Any, Dict, List, Sequence, Tuple, Type
 import matplotlib.axes
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,6 +24,7 @@ import cv2
 from tqdm import tqdm
 import open_clip
 from eval.openclip_encoder import OpenCLIPNetwork
+from itertools import groupby
 
 image_path = None
 save_path = None
@@ -190,6 +191,28 @@ def get_entities(predictor: SAM2VideoPredictor, state, frame_idx, prompt):
                 break
     return frame_index, object_ids, masks
 
+def binary_mask_to_rle(binary_mask: np.ndarray):
+    rle = {'counts': [], 'size': list(binary_mask.shape)}
+    counts = rle.get('counts')
+    for i, (value, elements) in enumerate(groupby(binary_mask.ravel(order='F'))):
+        if i == 0 and value == 1:
+            counts.append(0)
+        counts.append(len(list(elements)))
+    return rle
+
+def rle_to_mask(rle: Dict[str, Any]) -> np.ndarray:
+    """Compute a binary mask from an uncompressed RLE."""
+    h, w = rle["size"]
+    mask = np.empty(h * w, dtype=bool)
+    idx = 0
+    parity = False
+    for count in rle["counts"]:
+        mask[idx : idx + count] = parity
+        idx += count
+        parity ^= True
+    mask = mask.reshape(w, h)
+    return mask.transpose()  # Put in C order
+
 def prompt_filter(mask: np.ndarray):
     mask=mask['segmentation']
     area = mask.sum()
@@ -258,7 +281,8 @@ def video_segment(image_names: List[str], images: np.ndarray):
                                                                 # stability_score_thresh=0.85,
                                                                 crop_n_layers=1,
                                                                 # crop_n_points_downscale_factor=1,
-                                                                min_mask_region_area=100
+                                                                min_mask_region_area=100,
+                                                                output_mode='uncompressed_rle'
                                                                 ) # 1G
     predictor = SAM2VideoPredictor.from_pretrained(args.sam_path) #1G
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
